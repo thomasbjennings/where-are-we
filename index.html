@@ -145,10 +145,12 @@
   means a send/receive district whose students attend another district's high
   school by agreement. Multi-high-school townships list their schools — which
   one a given street attends is an attendance-zone question no public statewide
-  layer answers. Legislative and congressional lines use NJOGIS's post-2020-census
-  district polygons (the legislative map in effect since the 2023 elections);
-  officeholder names are deliberately omitted, since the state's own roster
-  notes warn they update infrequently. All layers download once and
+  layer answers. Population and area show the municipality's statewide rank among
+  the 564, computed from the same layer, using the figures as the state
+  publishes them. Legislative and congressional district layers are wired into
+  the code but currently switched off. The map follows your dot; drag it to
+  browse (following stops), and tap the big town name or the "follow" link to
+  snap back. All layers download once and
   are cached on this device; after that, answers work offline. The map needs a
   connection for its base tiles; the boundary lines and your dot do not. Tap the big town name to center
   the map on yourself; tap a visited row to pan to that town. "days" counts
@@ -241,6 +243,7 @@ const CIVIC_SERVICES = {
   cong: SD_BASE + "Congressional_Districts_of_NJ_Hosted_3857/FeatureServer/0/query"
 };
 const CIVIC_DB_KEYS = { leg: "leg:v1", cong: "cong:v1" };
+const SHOW_CIVIC = false; // flip to true to re-enable leg/cong lines
 
 const PAGE_SIZE = 500;
 const DB_KEY = "boundaries:v2";   // v2: now includes type/population/area fields
@@ -657,13 +660,30 @@ function buildCivicFeatures(fc, kind) {
   return out;
 }
 
+/* Statewide ranks for population and area, computed from the loaded layer.
+   Ties get adjacent ranks; features missing a value are excluded from that
+   denominator. Mutates features in place. */
+function computeRanks(features) {
+  const byPop = features.filter(f => typeof f.pop === "number")
+    .sort((a, b) => b.pop - a.pop);
+  byPop.forEach((f, i) => { f.popRank = i + 1; f.popOf = byPop.length; });
+  const byArea = features.filter(f => typeof f.sqmi === "number")
+    .sort((a, b) => b.sqmi - a.sqmi);
+  byArea.forEach((f, i) => { f.sqmiRank = i + 1; f.sqmiOf = byArea.length; });
+}
+
 /* Pure: one attribute per line, Craigslist-form style. */
 function composeLinesFound(f, zipStr, dl, legLabel, congLabel, accuracy, demo) {
   const lines = [];
   lines.push(f.county ? f.county + " County, NJ" : "NJ");
-  if (f.type) lines.push("type: " + f.type);
-  if (typeof f.pop === "number") lines.push("pop: " + f.pop.toLocaleString("en-US"));
-  if (typeof f.sqmi === "number") lines.push("area: " + f.sqmi.toFixed(1) + " sq mi");
+  if (typeof f.pop === "number") {
+    lines.push("pop: " + f.pop.toLocaleString("en-US") +
+      (f.popRank ? " (rank " + f.popRank + " of " + f.popOf + ")" : ""));
+  }
+  if (typeof f.sqmi === "number") {
+    lines.push("area: " + f.sqmi.toFixed(1) + " sq mi" +
+      (f.sqmiRank ? " (rank " + f.sqmiRank + " of " + f.sqmiOf + ")" : ""));
+  }
   if (zipStr) lines.push(zipStr);
   if (dl.dist) lines.push(dl.dist);
   if (dl.hs) lines.push(dl.hs);
@@ -706,6 +726,7 @@ async function fetchAllPages(serviceUrl, baseParams, extraParams, label) {
 
 function installBoundaries(fc, sourceNote) {
   FEATURES = buildFeatures(fc);
+  computeRanks(FEATURES);
   OVERALL = FEATURES.length ? overallBbox(FEATURES) : null;
   lastMatch = -1;
   drawBoundaries();
@@ -940,6 +961,37 @@ function highlight(feature) {
   }).addTo(map);
 }
 
+let follow = true;
+let followLink = null;
+
+function setFollow(v) {
+  follow = v;
+  if (followLink) {
+    followLink.textContent = v ? "following" : "follow";
+    followLink.style.color = v ? "#666" : "#0000EE";
+    followLink.style.textDecoration = v ? "none" : "underline";
+  }
+  if (v && lastFix) map.panTo([lastFix.lat, lastFix.lon]);
+}
+
+const followCtl = L.control({ position: "topright" });
+followCtl.onAdd = function () {
+  const div = L.DomUtil.create("div");
+  div.style.cssText =
+    "background:#fff;border:1px solid #dcdcdc;padding:2px 7px;font:11px Arial,sans-serif;";
+  followLink = document.createElement("a");
+  followLink.textContent = "following";
+  followLink.style.cssText = "color:#666;cursor:pointer;";
+  followLink.onclick = () => setFollow(!follow);
+  div.appendChild(followLink);
+  L.DomEvent.disableClickPropagation(div);
+  return div;
+};
+followCtl.addTo(map);
+
+// A manual drag means the person wants to browse — stop following.
+map.on("dragstart", () => setFollow(false));
+
 function placeDot(lat, lon, accuracy) {
   if (!dot) {
     acc = L.circle([lat, lon], { radius: accuracy || 0, color: "#0000EE",
@@ -950,6 +1002,7 @@ function placeDot(lat, lon, accuracy) {
   } else {
     dot.setLatLng([lat, lon]);
     acc.setLatLng([lat, lon]).setRadius(accuracy || 0);
+    if (follow) map.panTo([lat, lon]);
   }
 }
 
@@ -1004,7 +1057,10 @@ function renderRows() {
     const link = row.querySelector("a");
     link.onclick = () => {
       link.classList.add("visited");
-      if (typeof v.lat === "number") map.setView([v.lat, v.lon], 13);
+      if (typeof v.lat === "number") {
+        setFollow(false);
+        map.setView([v.lat, v.lon], 13);
+      }
     };
     rows.appendChild(row);
   }
@@ -1097,7 +1153,12 @@ document.getElementById("refresh").onclick = () => {
     () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
 };
 
-townName.onclick = () => { if (lastFix) map.setView([lastFix.lat, lastFix.lon], 13); };
+townName.onclick = () => {
+  if (lastFix) {
+    setFollow(true);
+    map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 13));
+  }
+};
 
 document.getElementById("maptoggle").onclick = function () {
   const m = document.getElementById("map");
@@ -1151,7 +1212,7 @@ renderRows();
 ensureBoundaries();
 ensureZctas();
 loadAllSchoolData();
-loadCivicLayers();
+if (SHOW_CIVIC) loadCivicLayers();
 startLocating();
 </script>
 </body>
