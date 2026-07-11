@@ -122,6 +122,8 @@
   <div class="label">you are in:</div>
   <a class="title" id="townname" title="tap to center map">locating…</a>
   <div class="sub" id="townmeta">waiting for a position fix</div>
+  <div class="sub" id="townstats" style="display:none"></div>
+  <div class="sub" id="townzip" style="display:none"></div>
 </div>
 
 <div class="list">
@@ -133,9 +135,13 @@
   <b>where are we</b> — shows the New Jersey municipality you are technically in,
   resolved against the state's official boundary polygons (NJOGIS "Municipal
   Boundaries of NJ", all 564 municipalities), and keeps a list of every town
-  you've visited. The boundary data downloads once and is cached on this device;
-  after that, the answer works offline. The map needs a connection for its base
-  tiles; the boundary lines and your dot do not. Tap the big town name to center
+  you've visited — with the municipality type, 2020 Census population, and land
+  area from the same state layer. The zip line is your position tested against
+  US Census ZCTA polygons: a close approximation of postal ZIP areas, not USPS
+  gospel, shown with the postal place name (e.g. 07438 "Oak Ridge"), which in
+  NJ often differs from the actual municipality. All layers download once and
+  are cached on this device; after that, answers work offline. The map needs a
+  connection for its base tiles; the boundary lines and your dot do not. Tap the big town name to center
   the map on yourself; tap a visited row to pan to that town. "days" counts
   distinct calendar days present. Outside New Jersey it reports coordinates only.
   Data: NJOGIS / NJGIN Open Data. Map tiles © OpenStreetMap contributors.
@@ -162,15 +168,36 @@ const SERVICE = "https://services2.arcgis.com/XVOqAjTOJ5P6ngMu/arcgis/rest/servi
 // fallback below absorbs any hairline slivers this can create at shared borders.
 const FETCH_PARAMS = {
   where: "1=1",
-  outFields: "MUN_LABEL,NAME,MUN,COUNTY",
+  outFields: "MUN_LABEL,NAME,MUN,COUNTY,MUN_TYPE,POP2020,SQ_MILES",
   outSR: "4326",
   f: "geojson",
   geometryPrecision: "5",
   maxAllowedOffset: "0.0001",
   orderByFields: "OBJECTID"
 };
+
+// US Census TIGERweb 2020 ZIP Code Tabulation Areas — polygon approximations
+// of ZIP service areas. Queried for the NJ envelope (plus border fringe).
+const ZCTA_SERVICE = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/PUMA_TAD_TAZ_UGA_ZCTA/MapServer/4/query";
+const ZCTA_PARAMS = {
+  where: "1=1",
+  geometry: "-75.60,38.85,-73.85,41.36",
+  geometryType: "esriGeometryEnvelope",
+  inSR: "4326",
+  spatialRel: "esriSpatialRelIntersects",
+  outFields: "ZCTA5",
+  outSR: "4326",
+  f: "geojson",
+  geometryPrecision: "5",
+  maxAllowedOffset: "0.0001"
+};
+
+// NJ ZIP → postal place name (USPS-style names, e.g. 07438 → "Oak Ridge").
+const ZIPNAMES = {"07093":"Monitor","07675":"Westwood","07677":"Woodcliff Lake","07885":"Wharton","07981":"Whippany","07999":"Whippany","08888":"Whitehouse","08889":"Whitehouse Station","07095":"Woodbridge","07481":"Wyckoff","07820":"Allamuchy","07401":"Allendale","07620":"Alpine","07821":"Andover","08801":"Annandale","08802":"Asbury","07822":"Augusta","07001":"Avenel","08803":"Baptistown","07920":"Basking Ridge","07939":"Lyons","07002":"Bayonne","07921":"Bedminster","07823":"Belvidere","07621":"Bergenfield","07922":"Berkeley Heights","07924":"Bernardsville","07825":"Blairstown","07003":"Bloomfield","07403":"Bloomingdale","08804":"Bloomsbury","07005":"Boonton","08805":"Bound Brook","07826":"Branchville","07827":"Montague","07890":"Branchville","08807":"Bridgewater","08808":"Broadway","07926":"Brookside","07828":"Budd Lake","07405":"Butler","07829":"Buttzville","07004":"Fairfield","07006":"Caldwell","07007":"Caldwell","07830":"Califon","07008":"Carteret","07009":"Cedar Grove","07927":"Cedar Knolls","07831":"Changewater","07928":"Chatham","07930":"Chester","07010":"Cliffside Park","07011":"Clifton","07012":"Clifton","07013":"Clifton","07014":"Clifton","07015":"Clifton","08809":"Clinton","07624":"Closter","07832":"Columbia","07016":"Cranford","07626":"Cresskill","08810":"Dayton","07833":"Delaware","07627":"Demarest","07834":"Denville","07801":"Dover","07802":"Dover","07803":"Mine Hill","07806":"Picatinny Arsenal","07869":"Randolph","07628":"Dumont","08812":"Dunellen","08816":"East Brunswick","07936":"East Hanover","07017":"East Orange","07018":"East Orange","07019":"East Orange","07020":"Edgewater","08817":"Edison","08818":"Edison","08820":"Edison","08837":"Edison","08899":"Edison","07201":"Elizabeth","07202":"Elizabeth","07203":"Roselle","07204":"Roselle Park","07205":"Hillside","07206":"Elizabethport","07207":"Elizabeth","07208":"Elizabeth","07407":"Elmwood Park","07630":"Emerson","07631":"Englewood","07632":"Englewood Cliffs","07021":"Essex Fells","07410":"Fair Lawn","07022":"Fairview","07023":"Fanwood","07931":"Far Hills","08821":"Flagtown","07836":"Flanders","08822":"Flemington","07932":"Florham Park","07024":"Fort Lee","07416":"Franklin","07417":"Franklin Lakes","08823":"Franklin Park","08825":"Frenchtown","07026":"Garfield","07027":"Garwood","07933":"Gillette","07934":"Gladstone","07837":"Glasser","08826":"Glen Gardner","07028":"Glen Ridge","07418":"Glenwood","07838":"Great Meadows","07839":"Greendell","07935":"Green Village","07601":"Hackensack","07602":"Hackensack","07603":"Bogota","07604":"Hasbrouck Heights","07605":"Leonia","07606":"South Hackensack","07607":"Maywood","07608":"Teterboro","07699":"Teterboro","07840":"Hackettstown","07419":"Hamburg","08827":"Hampton","07640":"Harrington Park","07029":"Harrison","07420":"Haskell","07641":"Haworth","08828":"Helmetta","07421":"Hewitt","07842":"Hibernia","08829":"High Bridge","07422":"Highland Lakes","08844":"Hillsborough","07642":"Hillsdale","07676":"Township Of Washington","07030":"Hoboken","07423":"Ho Ho Kus","07843":"Hopatcong","07844":"Hope","07845":"Ironia","08830":"Iselin","08831":"Monroe Township","07097":"Jersey City","07302":"Jersey City","07303":"Jersey City","07304":"Jersey City","07305":"Jersey City","07306":"Jersey City","07307":"Jersey City","07308":"Jersey City","07310":"Jersey City","07311":"Jersey City","07395":"Jersey City","07399":"Jersey City","07846":"Johnsonburg","07031":"North Arlington","07032":"Kearny","07099":"Kearny","08832":"Keasbey","08824":"Kendall Park","07033":"Kenilworth","07847":"Kenvil","07848":"Lafayette","07034":"Lake Hiawatha","07849":"Lake Hopatcong","07850":"Landing","07851":"Layton","08833":"Lebanon","07852":"Ledgewood","07938":"Liberty Corner","07035":"Lincoln Park","07036":"Linden","07424":"Little Falls","07643":"Little Ferry","08834":"Little York","07039":"Livingston","07644":"Lodi","07853":"Long Valley","07428":"Mc Afee","07940":"Madison","07430":"Mahwah","07495":"Mahwah","08835":"Manville","07040":"Maplewood","08836":"Martinsville","07945":"Mendham","08840":"Metuchen","08846":"Middlesex","07855":"Middleville","07432":"Midland Park","08848":"Milford","07041":"Millburn","07946":"Millington","08850":"Milltown","08852":"Monmouth Junction","07042":"Montclair","07043":"Montclair","07044":"Verona","07645":"Montvale","07045":"Montville","07950":"Morris Plains","07960":"Morristown","07961":"Convent Station","07962":"Morristown","07963":"Morristown","07046":"Mountain Lakes","07856":"Mount Arlington","07970":"Mount Freedom","08853":"Neshanic Station","07857":"Netcong","07101":"Newark","07102":"Newark","07103":"Newark","07104":"Newark","07105":"Newark","07106":"Newark","07107":"Newark","07108":"Newark","07109":"Belleville","07110":"Nutley","07111":"Irvington","07112":"Newark","07114":"Newark","07175":"Newark","07184":"Newark","07188":"Newark","07189":"Newark","07191":"Newark","07192":"Newark","07193":"Newark","07195":"Newark","07198":"Newark","07199":"Newark","08901":"New Brunswick","08902":"North Brunswick","08903":"New Brunswick","08904":"Highland Park","08905":"New Brunswick","08906":"New Brunswick","08933":"New Brunswick","08989":"New Brunswick","07435":"Newfoundland","07646":"New Milford","07974":"New Providence","07860":"Newton","07976":"New Vernon","07047":"North Bergen","07647":"Northvale","07648":"Norwood","07436":"Oakland","07438":"Oak Ridge","07439":"Ogdensburg","08857":"Old Bridge","08858":"Oldwick","07649":"Oradell","07050":"Orange","07051":"Orange","07052":"West Orange","07863":"Oxford","07650":"Palisades Park","07652":"Paramus","07653":"Paramus","07656":"Park Ridge","08859":"Parlin","07054":"Parsippany","07055":"Passaic","07057":"Wallington","07501":"Paterson","07502":"Paterson","07503":"Paterson","07504":"Paterson","07505":"Paterson","07506":"Hawthorne","07507":"Hawthorne","07508":"Haledon","07509":"Paterson","07510":"Paterson","07511":"Totowa","07512":"Totowa","07513":"Paterson","07514":"Paterson","07522":"Paterson","07524":"Paterson","07533":"Paterson","07538":"Haledon","07543":"Paterson","07544":"Paterson","07977":"Peapack","07440":"Pequannock","08861":"Perth Amboy","08862":"Perth Amboy","08863":"Fords","08865":"Phillipsburg","07058":"Pine Brook","08854":"Piscataway","08855":"Piscataway","08867":"Pittstown","07059":"Warren","07060":"Plainfield","07061":"Plainfield","07062":"Plainfield","07063":"Plainfield","07069":"Watchung","07978":"Pluckemin","07442":"Pompton Lakes","07444":"Pompton Plains","07865":"Port Murray","07064":"Port Reading","07979":"Pottersville","08868":"Quakertown","07065":"Rahway","07066":"Clark","07067":"Colonia","07446":"Ramsey","08869":"Raritan","08870":"Readington","07657":"Ridgefield","07660":"Ridgefield Park","07450":"Ridgewood","07451":"Ridgewood","07452":"Glen Rock","07456":"Ringwood","07457":"Riverdale","07661":"River Edge","07662":"Rochelle Park","07663":"Saddle Brook","07866":"Rockaway","07068":"Roseland","07070":"Rutherford","07071":"Lyndhurst","07072":"Carlstadt","07073":"East Rutherford","07074":"Moonachie","07075":"Wood Ridge","07458":"Saddle River","08871":"Sayreville","08872":"Sayreville","07870":"Schooleys Mountain","07076":"Scotch Plains","07094":"Secaucus","07096":"Secaucus","07077":"Sewaren","07078":"Short Hills","08873":"Somerset","08875":"Somerset","08890":"Zarephath","08876":"Somerville","08879":"South Amboy","08880":"South Bound Brook","07079":"South Orange","07080":"South Plainfield","08882":"South River","07871":"Sparta","08884":"Spotswood","07081":"Springfield","07874":"Stanhope","08885":"Stanton","08886":"Stewartsville","07875":"Stillwater","07980":"Stirling","07460":"Stockholm","07876":"Succasunna","07901":"Summit","07902":"Summit","07461":"Sussex","07877":"Swartswood","07878":"Mount Tabor","07666":"Teaneck","07670":"Tenafly","08887":"Three Bridges","07082":"Towaco","07879":"Tranquility","07083":"Union","07086":"Weehawken","07087":"Union City","07088":"Vauxhall","07462":"Vernon","07880":"Vienna","07463":"Waldwick","07881":"Wallpack Center","07465":"Wanaque","07882":"Washington","07470":"Wayne","07474":"Wayne","07090":"Westfield","07091":"Westfield","07092":"Mountainside","07480":"West Milford","08201":"Absecon","08205":"Absecon","07710":"Adelphia","07711":"Allenhurst","08501":"Allentown","08720":"Allenwood","08001":"Alloway","07712":"Asbury Park","08004":"Atco","08401":"Atlantic City","08402":"Margate City","08403":"Longport","08404":"Atlantic City","08405":"Atlantic City","08406":"Ventnor City","07716":"Atlantic Highlands","08202":"Avalon","07717":"Avon By The Sea","08005":"Barnegat","08006":"Barnegat Light","08007":"Barrington","08721":"Bayville","08008":"Beach Haven","08722":"Beachwood","07718":"Belford","08502":"Belle Mead","07715":"Belmar","07719":"Belmar","08009":"Berlin","08010":"Beverly","08011":"Birmingham","08012":"Blackwood","08504":"Blawenburg","08505":"Bordentown","07720":"Bradley Beach","08723":"Brick","08724":"Brick","08014":"Bridgeport","08302":"Bridgeton","08730":"Brielle","08203":"Brigantine","08015":"Browns Mills","08310":"Buena","08016":"Burlington","08101":"Camden","08102":"Camden","08103":"Camden","08104":"Camden","08105":"Camden","08106":"Audubon","08107":"Oaklyn","08108":"Collingswood","08109":"Merchantville","08110":"Pennsauken","08204":"Cape May","08210":"Cape May Court House","08212":"Cape May Point","08018":"Cedar Brook","08311":"Cedarville","08019":"Chatsworth","08002":"Cherry Hill","08003":"Cherry Hill","08034":"Cherry Hill","08020":"Clarksboro","08510":"Millstone Township","08526":"Imlaystown","08312":"Clayton","08021":"Clementon","07721":"Cliffwood","08213":"Cologne","07722":"Colts Neck","08022":"Columbus","08511":"Cookstown","08512":"Cranbury","08514":"Cream Ridge","08515":"Chesterfield","07723":"Deal","08023":"Deepwater","08313":"Deerfield Street","08314":"Delmont","08214":"Dennisville","08315":"Dividing Creek","08316":"Dorchester","08317":"Dorothy","07724":"Eatontown","07799":"Eatontown","08215":"Egg Harbor City","08318":"Elmer","08217":"Elwood","07726":"Englishtown","08319":"Estell Manor","08025":"Ewan","08320":"Fairton","07727":"Farmingdale","08518":"Florence","08731":"Forked River","08321":"Fortescue","08322":"Franklinville","07728":"Freehold","08026":"Gibbsboro","08027":"Gibbstown","08028":"Glassboro","08029":"Glendora","08030":"Gloucester City","08218":"Goshen","08219":"Green Creek","08323":"Greenwich","08032":"Grenloch","08033":"Haddonfield","08035":"Haddon Heights","08036":"Hainesport","08037":"Hammonton","08038":"Hancocks Bridge","08039":"Harrisonville","07730":"Hazlet","08324":"Heislerville","07732":"Highlands","08520":"Hightstown","07733":"Holmdel","08525":"Hopewell","07731":"Howell","08732":"Island Heights","08527":"Jackson","08041":"Jobstown","08042":"Juliustown","07734":"Keansburg","07735":"Keyport","08528":"Kingston","08043":"Voorhees","08733":"Lakehurst","08759":"Manchester Township","08701":"Lakewood","08530":"Lambertville","08326":"Landisville","08734":"Lanoka Harbor","08735":"Lavallette","08045":"Lawnside","08220":"Leeds Point","08327":"Leesburg","07737":"Leonardo","07738":"Lincroft","08221":"Linwood","07739":"Little Silver","07740":"Long Branch","08048":"Lumberton","08049":"Magnolia","08328":"Malaga","08050":"Manahawkin","08736":"Manasquan","08738":"Mantoloking","08051":"Mantua","08052":"Maple Shade","07746":"Marlboro","08053":"Marlton","08223":"Marmora","07747":"Matawan","08329":"Mauricetown","08330":"Mays Landing","08055":"Medford","08056":"Mickleton","07748":"Middletown","08332":"Millville","08340":"Milmay","08341":"Minotola","08342":"Mizpah","07750":"Monmouth Beach","08343":"Monroeville","08057":"Moorestown","07751":"Morganville","08059":"Mount Ephraim","08060":"Mount Holly","08054":"Mount Laurel","08061":"Mount Royal","08062":"Mullica Hill","08063":"National Park","07752":"Navesink","07753":"Neptune","07754":"Neptune","08533":"New Egypt","08344":"Newfield","08224":"New Gretna","08064":"New Lisbon","08345":"Newport","08346":"Newtonville","08347":"Norma","08739":"Normandy Beach","08225":"Northfield","07755":"Oakhurst","08226":"Ocean City","08740":"Ocean Gate","07756":"Ocean Grove","07757":"Oceanport","08230":"Ocean View","08231":"Oceanville","08065":"Palmyra","08066":"Paulsboro","08067":"Pedricktown","08068":"Pemberton","08534":"Pennington","08069":"Penns Grove","08070":"Pennsville","08535":"Millstone Township","08741":"Pine Beach","08071":"Pitman","08536":"Plainsboro","08232":"Pleasantville","08234":"Egg Harbor Township","08742":"Point Pleasant Beach","08240":"Pomona","08348":"Port Elizabeth","07758":"Port Monmouth","08349":"Port Norris","08241":"Port Republic","08540":"Princeton","08541":"Princeton","08542":"Princeton","08543":"Princeton","08544":"Princeton","08550":"Princeton Junction","08072":"Quinton","08073":"Rancocas","07701":"Red Bank","07702":"Shrewsbury","07703":"Fort Monmouth","07704":"Fair Haven","07709":"Red Bank","08350":"Richland","08074":"Richwood","08551":"Ringoes","08242":"Rio Grande","08075":"Riverside","08076":"Riverton","08077":"Riverton","08553":"Rocky Hill","08554":"Roebling","08555":"Roosevelt","08556":"Rosemont","08352":"Rosenhayn","07760":"Rumson","08078":"Runnemede","08079":"Salem","08750":"Sea Girt","08243":"Sea Isle City","08751":"Seaside Heights","08752":"Seaside Park","08557":"Sergeantsville","08080":"Sewell","08353":"Shiloh","08081":"Sicklerville","08558":"Skillman","08083":"Somerdale","08244":"Somers Point","08245":"South Dennis","08031":"Bellmawr","08099":"Bellmawr","08246":"South Seaville","07762":"Spring Lake","08559":"Stockton","08247":"Stone Harbor","08084":"Stratford","08248":"Strathmere","08085":"Swedesboro","07763":"Tennent","08086":"Thorofare","08560":"Titusville","08753":"Toms River","08754":"Toms River","08755":"Toms River","08756":"Toms River","08757":"Toms River","08601":"Trenton","08602":"Trenton","08603":"Trenton","08604":"Trenton","08605":"Trenton","08606":"Trenton","08607":"Trenton","08608":"Trenton","08609":"Trenton","08610":"Trenton","08611":"Trenton","08618":"Trenton","08619":"Trenton","08620":"Trenton","08625":"Trenton","08628":"Trenton","08629":"Trenton","08638":"Trenton","08640":"Fort Dix","08641":"Trenton","08645":"Trenton","08646":"Trenton","08647":"Trenton","08648":"Lawrence Township","08650":"Trenton","08666":"Trenton","08690":"Trenton","08691":"Trenton","08695":"Trenton","08250":"Tuckahoe","08087":"Tuckerton","08251":"Villas","08088":"Vincentown","08360":"Vineland","08361":"Vineland","08362":"Vineland","08758":"Waretown","08089":"Waterford Works","08090":"Wenonah","08091":"West Berlin","08092":"West Creek","07764":"West Long Branch","08093":"Westville","08252":"Whitesboro","07765":"Wickatunk","08260":"Wildwood","08094":"Williamstown","08046":"Willingboro","08561":"Windsor","08095":"Winslow","08270":"Woodbine","08096":"Blackwood Ter","08097":"Woodbury Heights","08098":"Woodstown","08562":"Wrightstown","07182":"Shared Firm Zip","07194":"Midlantic National Bank","07309":"General Lafayette","07477":"State Farm Insurance","07983":"Corporate Mailings","08922":"New Brunswick","08988":"New Brunswick","08644":"Trenton"};
+
 const PAGE_SIZE = 500;
-const DB_KEY = "boundaries:v1";
+const DB_KEY = "boundaries:v2";   // v2: now includes type/population/area fields
+const ZIP_DB_KEY = "zcta:v1";
 const VISITS_KEY = "waw:visits:v1";
 const DEMO = { lat: 40.8054, lon: -74.2039 }; // Glen Ridge, for sandboxed previews
 
@@ -284,6 +311,9 @@ function buildFeatures(fc) {
     out.push({
       name: normName(props.MUN_LABEL || props.NAME || props.MUN),
       county: normCounty(props.COUNTY),
+      type: (props.MUN_TYPE || "").toLowerCase(),
+      pop: typeof props.POP2020 === "number" ? props.POP2020 : null,
+      sqmi: typeof props.SQ_MILES === "number" ? props.SQ_MILES : null,
       polys,
       bbox: bboxOfRings(rawPolys.flat(1)),
       geo: f
@@ -342,25 +372,91 @@ function lookup(lon, lat) {
   return null;
 }
 
+/* ---- ZIP (ZCTA) store: same machinery, separate layer ---- */
+
+let ZFEATURES = [];
+let ZOVERALL = null;
+let zLastMatch = -1;
+
+function buildZctas(fc) {
+  const out = [];
+  for (const f of fc.features || []) {
+    const g = f.geometry;
+    if (!g) continue;
+    let rawPolys;
+    if (g.type === "Polygon") rawPolys = [g.coordinates];
+    else if (g.type === "MultiPolygon") rawPolys = g.coordinates;
+    else continue;
+    const polys = rawPolys
+      .map(rings => ({ rings, bbox: bboxOfRings(rings) }))
+      .filter(p => p.rings.length && p.rings[0].length >= 4);
+    if (!polys.length) continue;
+    const props = f.properties || {};
+    const zip = String(props.ZCTA5 || props.GEOID || "").trim();
+    if (!zip) continue;
+    out.push({ zip, polys, bbox: bboxOfRings(rawPolys.flat(1)) });
+  }
+  return out;
+}
+
+function lookupZip(lon, lat) {
+  if (!ZFEATURES.length || !ZOVERALL || !inBbox(ZOVERALL, lon, lat)) return null;
+  if (zLastMatch >= 0 && featureContains(ZFEATURES[zLastMatch], lon, lat)) {
+    return ZFEATURES[zLastMatch];
+  }
+  for (let i = 0; i < ZFEATURES.length; i++) {
+    if (inBbox(ZFEATURES[i].bbox, lon, lat) && featureContains(ZFEATURES[i], lon, lat)) {
+      zLastMatch = i;
+      return ZFEATURES[i];
+    }
+  }
+  // Same sliver insurance as towns (~25 m), for generalization gaps.
+  const PAD = 0.001, MAXD2 = 5e-8;
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < ZFEATURES.length; i++) {
+    const f = ZFEATURES[i];
+    if (!inBbox(f.bbox, lon, lat, PAD)) continue;
+    for (const p of f.polys) {
+      if (!inBbox(p.bbox, lon, lat, PAD)) continue;
+      for (const ring of p.rings) {
+        for (let k = 0; k < ring.length - 1; k++) {
+          const d = pointSegDist2(lon, lat, ring[k][0], ring[k][1], ring[k + 1][0], ring[k + 1][1]);
+          if (d < bestD) { bestD = d; best = i; }
+        }
+      }
+    }
+  }
+  if (best >= 0 && bestD <= MAXD2) { zLastMatch = best; return ZFEATURES[best]; }
+  zLastMatch = -1;
+  return null;
+}
+
 /* ================= data loading ================= */
 
 const statusEl = document.getElementById("status");
-const setStatus = (html) => { statusEl.innerHTML = html; };
+let sMuni = "starting…", sZip = "", sNote = "";
+function renderStatus() {
+  statusEl.innerHTML = [sMuni, sZip, sNote].filter(Boolean).join(" · ");
+  wireStatusLinks();
+}
+const setStatus = (html) => { sMuni = html; renderStatus(); };
+const setZipStatus = (html) => { sZip = html; renderStatus(); };
 
-async function fetchAllPages(extraParams) {
+async function fetchAllPages(serviceUrl, baseParams, extraParams, label) {
   const features = [];
   for (let offset = 0; offset < 5000; offset += PAGE_SIZE) {
-    const merged = { ...FETCH_PARAMS, ...extraParams,
+    const merged = { ...baseParams, ...extraParams,
       resultOffset: String(offset), resultRecordCount: String(PAGE_SIZE) };
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(merged)) if (v !== "") p.append(k, v);
-    const resp = await fetch(SERVICE + "?" + p.toString());
+    const resp = await fetch(serviceUrl + "?" + p.toString());
     if (!resp.ok) throw new Error("HTTP " + resp.status);
     const data = await resp.json();
     if (data.error) throw new Error(data.error.message || "service error");
     const page = data.features || [];
     features.push(...page);
-    setStatus("downloading boundaries… " + features.length + " municipalities");
+    if (label === "zip") setZipStatus("downloading zips… " + features.length);
+    else setStatus("downloading boundaries… " + features.length + " municipalities");
     if (page.length < PAGE_SIZE) break;
   }
   return { type: "FeatureCollection", features };
@@ -374,7 +470,6 @@ function installBoundaries(fc, sourceNote) {
   setStatus(FEATURES.length
     ? FEATURES.length + " municipalities · " + sourceNote + ' · <a id="redl">re-download</a>'
     : 'boundary data was empty — <a id="retry">retry</a> or load a file');
-  wireStatusLinks();
   if (lastFix) onFix(lastFix, true); // resolve immediately with fresh data
 }
 
@@ -394,10 +489,10 @@ async function downloadBoundaries() {
   try {
     let fc;
     try {
-      fc = await fetchAllPages({});
+      fc = await fetchAllPages(SERVICE, FETCH_PARAMS, {}, "muni");
     } catch (e) {
       // Retry without generalization in case the parameter is rejected.
-      fc = await fetchAllPages({ maxAllowedOffset: "" });
+      fc = await fetchAllPages(SERVICE, FETCH_PARAMS, { maxAllowedOffset: "" }, "muni");
     }
     if (!fc.features.length) throw new Error("no features returned");
     await kvSet(DB_KEY, JSON.stringify(fc)).catch(() => {});
@@ -405,7 +500,47 @@ async function downloadBoundaries() {
   } catch (e) {
     setStatus('boundary download failed (' + (e.message || e) +
       ') — <a id="retry">retry</a> or <a id="loadfile2">load a boundary file</a>');
-    wireStatusLinks();
+  }
+}
+
+/* ---- ZIP (ZCTA) layer: independent — the app is fine without it ---- */
+
+function installZctas(fc, sourceNote) {
+  ZFEATURES = buildZctas(fc);
+  ZOVERALL = ZFEATURES.length ? overallBbox(ZFEATURES) : null;
+  zLastMatch = -1;
+  setZipStatus(ZFEATURES.length
+    ? ZFEATURES.length + " zips · " + sourceNote
+    : 'zip data was empty — <a id="retryzip">retry</a>');
+  if (lastFix) onFix(lastFix, true);
+}
+
+async function ensureZctas() {
+  try {
+    const cached = await kvGet(ZIP_DB_KEY);
+    if (cached) {
+      installZctas(JSON.parse(cached), "cached");
+      return;
+    }
+  } catch (e) { /* fall through to network */ }
+  await downloadZctas();
+}
+
+async function downloadZctas() {
+  setZipStatus("downloading zips from Census…");
+  try {
+    let fc;
+    try {
+      fc = await fetchAllPages(ZCTA_SERVICE, ZCTA_PARAMS, {}, "zip");
+    } catch (e) {
+      fc = await fetchAllPages(ZCTA_SERVICE, ZCTA_PARAMS, { maxAllowedOffset: "" }, "zip");
+    }
+    if (!fc.features.length) throw new Error("no features returned");
+    await kvSet(ZIP_DB_KEY, JSON.stringify(fc)).catch(() => {});
+    installZctas(fc, "from Census");
+  } catch (e) {
+    setZipStatus('zip layer failed (' + (e.message || e) +
+      ') — <a id="retryzip">retry</a>');
   }
 }
 
@@ -416,6 +551,8 @@ function wireStatusLinks() {
   if (l) l.onclick = () => document.getElementById("filepick").click();
   const d = document.getElementById("redl");
   if (d) d.onclick = downloadBoundaries;
+  const z = document.getElementById("retryzip");
+  if (z) z.onclick = downloadZctas;
 }
 
 /* ================= map ================= */
@@ -521,9 +658,31 @@ function renderRows() {
 
 const townName = document.getElementById("townname");
 const townMeta = document.getElementById("townmeta");
+const townStats = document.getElementById("townstats");
+const townZip = document.getElementById("townzip");
 let current = null;
 let lastFix = null;
 let demoMode = false;
+
+function setSub(el, text) {
+  el.textContent = text || "";
+  el.style.display = text ? "" : "none";
+}
+
+function statsLine(f) {
+  const parts = [];
+  if (f.type) parts.push(f.type);
+  if (typeof f.pop === "number") parts.push("pop " + f.pop.toLocaleString("en-US"));
+  if (typeof f.sqmi === "number") parts.push(f.sqmi.toFixed(1) + " sq mi");
+  return parts.join(" · ");
+}
+
+function zipLine(lon, lat) {
+  const z = lookupZip(lon, lat);
+  if (!z) return "";
+  const name = ZIPNAMES[z.zip];
+  return "zip " + z.zip + (name ? " (" + name + ")" : "");
+}
 
 function onFix(fix, silent) {
   lastFix = fix;
@@ -537,6 +696,8 @@ function onFix(fix, silent) {
       "  [official municipal boundary]" +
       (accuracy ? "  ±" + Math.round(accuracy) + " m" : "") +
       (demoMode ? "  [demo location]" : "");
+    setSub(townStats, statsLine(f));
+    setSub(townZip, zipLine(lon, lat));
     highlight(f);
     recordVisit(f, lat, lon);
   } else {
@@ -544,6 +705,8 @@ function onFix(fix, silent) {
     townMeta.textContent = lat.toFixed(4) + ", " + lon.toFixed(4) +
       (FEATURES.length ? "" : " — waiting for boundary data") +
       (demoMode ? "  [demo location]" : "");
+    setSub(townStats, "");
+    setSub(townZip, zipLine(lon, lat)); // border fringe: zip can be known outside NJ
     highlight(null);
     if (!silent) renderRows();
   }
@@ -551,8 +714,8 @@ function onFix(fix, silent) {
 
 function startDemo(reason) {
   demoMode = true;
-  setStatus((statusEl.textContent || "") +
-    " · demo location (GPS needs this page served over https): " + reason);
+  sNote = "demo location (GPS needs this page served over https): " + reason;
+  renderStatus();
   onFix({ lat: DEMO.lat, lon: DEMO.lon, accuracy: 25 });
 }
 
@@ -628,6 +791,7 @@ document.getElementById("filepick").onchange = async function () {
 
 renderRows();
 ensureBoundaries();
+ensureZctas();
 startLocating();
 </script>
 </body>
