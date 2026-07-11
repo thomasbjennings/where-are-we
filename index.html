@@ -121,9 +121,7 @@
 <div class="now">
   <div class="label">you are in:</div>
   <a class="title" id="townname" title="tap to center map">locating…</a>
-  <div class="sub" id="townmeta">waiting for a position fix</div>
-  <div class="sub" id="townstats" style="display:none"></div>
-  <div class="sub" id="townzip" style="display:none"></div>
+  <div id="townlines"><div class="sub">waiting for a position fix</div></div>
 </div>
 
 <div class="list">
@@ -139,7 +137,18 @@
   area from the same state layer. The zip line is your position tested against
   US Census ZCTA polygons: a close approximation of postal ZIP areas, not USPS
   gospel, shown with the postal place name (e.g. 07438 "Oak Ridge"), which in
-  NJ often differs from the actual municipality. All layers download once and
+  NJ often differs from the actual municipality. The school lines come from
+  NJOGIS's financial-responsibility district boundaries (the district legally
+  responsible for a resident student — reviewed annually with NJDOE) joined to
+  the NJDOE public-school directory by district code; where an elementary and a
+  regional high-school district differ, both are shown. "None on file" usually
+  means a send/receive district whose students attend another district's high
+  school by agreement. Multi-high-school townships list their schools — which
+  one a given street attends is an attendance-zone question no public statewide
+  layer answers. Legislative and congressional lines use NJOGIS's post-2020-census
+  district polygons (the legislative map in effect since the 2023 elections);
+  officeholder names are deliberately omitted, since the state's own roster
+  notes warn they update infrequently. All layers download once and
   are cached on this device; after that, answers work offline. The map needs a
   connection for its base tiles; the boundary lines and your dot do not. Tap the big town name to center
   the map on yourself; tap a visited row to pan to that town. "days" counts
@@ -194,6 +203,44 @@ const ZCTA_PARAMS = {
 
 // NJ ZIP → postal place name (USPS-style names, e.g. 07438 → "Oak Ridge").
 const ZIPNAMES = {"07093":"Monitor","07675":"Westwood","07677":"Woodcliff Lake","07885":"Wharton","07981":"Whippany","07999":"Whippany","08888":"Whitehouse","08889":"Whitehouse Station","07095":"Woodbridge","07481":"Wyckoff","07820":"Allamuchy","07401":"Allendale","07620":"Alpine","07821":"Andover","08801":"Annandale","08802":"Asbury","07822":"Augusta","07001":"Avenel","08803":"Baptistown","07920":"Basking Ridge","07939":"Lyons","07002":"Bayonne","07921":"Bedminster","07823":"Belvidere","07621":"Bergenfield","07922":"Berkeley Heights","07924":"Bernardsville","07825":"Blairstown","07003":"Bloomfield","07403":"Bloomingdale","08804":"Bloomsbury","07005":"Boonton","08805":"Bound Brook","07826":"Branchville","07827":"Montague","07890":"Branchville","08807":"Bridgewater","08808":"Broadway","07926":"Brookside","07828":"Budd Lake","07405":"Butler","07829":"Buttzville","07004":"Fairfield","07006":"Caldwell","07007":"Caldwell","07830":"Califon","07008":"Carteret","07009":"Cedar Grove","07927":"Cedar Knolls","07831":"Changewater","07928":"Chatham","07930":"Chester","07010":"Cliffside Park","07011":"Clifton","07012":"Clifton","07013":"Clifton","07014":"Clifton","07015":"Clifton","08809":"Clinton","07624":"Closter","07832":"Columbia","07016":"Cranford","07626":"Cresskill","08810":"Dayton","07833":"Delaware","07627":"Demarest","07834":"Denville","07801":"Dover","07802":"Dover","07803":"Mine Hill","07806":"Picatinny Arsenal","07869":"Randolph","07628":"Dumont","08812":"Dunellen","08816":"East Brunswick","07936":"East Hanover","07017":"East Orange","07018":"East Orange","07019":"East Orange","07020":"Edgewater","08817":"Edison","08818":"Edison","08820":"Edison","08837":"Edison","08899":"Edison","07201":"Elizabeth","07202":"Elizabeth","07203":"Roselle","07204":"Roselle Park","07205":"Hillside","07206":"Elizabethport","07207":"Elizabeth","07208":"Elizabeth","07407":"Elmwood Park","07630":"Emerson","07631":"Englewood","07632":"Englewood Cliffs","07021":"Essex Fells","07410":"Fair Lawn","07022":"Fairview","07023":"Fanwood","07931":"Far Hills","08821":"Flagtown","07836":"Flanders","08822":"Flemington","07932":"Florham Park","07024":"Fort Lee","07416":"Franklin","07417":"Franklin Lakes","08823":"Franklin Park","08825":"Frenchtown","07026":"Garfield","07027":"Garwood","07933":"Gillette","07934":"Gladstone","07837":"Glasser","08826":"Glen Gardner","07028":"Glen Ridge","07418":"Glenwood","07838":"Great Meadows","07839":"Greendell","07935":"Green Village","07601":"Hackensack","07602":"Hackensack","07603":"Bogota","07604":"Hasbrouck Heights","07605":"Leonia","07606":"South Hackensack","07607":"Maywood","07608":"Teterboro","07699":"Teterboro","07840":"Hackettstown","07419":"Hamburg","08827":"Hampton","07640":"Harrington Park","07029":"Harrison","07420":"Haskell","07641":"Haworth","08828":"Helmetta","07421":"Hewitt","07842":"Hibernia","08829":"High Bridge","07422":"Highland Lakes","08844":"Hillsborough","07642":"Hillsdale","07676":"Township Of Washington","07030":"Hoboken","07423":"Ho Ho Kus","07843":"Hopatcong","07844":"Hope","07845":"Ironia","08830":"Iselin","08831":"Monroe Township","07097":"Jersey City","07302":"Jersey City","07303":"Jersey City","07304":"Jersey City","07305":"Jersey City","07306":"Jersey City","07307":"Jersey City","07308":"Jersey City","07310":"Jersey City","07311":"Jersey City","07395":"Jersey City","07399":"Jersey City","07846":"Johnsonburg","07031":"North Arlington","07032":"Kearny","07099":"Kearny","08832":"Keasbey","08824":"Kendall Park","07033":"Kenilworth","07847":"Kenvil","07848":"Lafayette","07034":"Lake Hiawatha","07849":"Lake Hopatcong","07850":"Landing","07851":"Layton","08833":"Lebanon","07852":"Ledgewood","07938":"Liberty Corner","07035":"Lincoln Park","07036":"Linden","07424":"Little Falls","07643":"Little Ferry","08834":"Little York","07039":"Livingston","07644":"Lodi","07853":"Long Valley","07428":"Mc Afee","07940":"Madison","07430":"Mahwah","07495":"Mahwah","08835":"Manville","07040":"Maplewood","08836":"Martinsville","07945":"Mendham","08840":"Metuchen","08846":"Middlesex","07855":"Middleville","07432":"Midland Park","08848":"Milford","07041":"Millburn","07946":"Millington","08850":"Milltown","08852":"Monmouth Junction","07042":"Montclair","07043":"Montclair","07044":"Verona","07645":"Montvale","07045":"Montville","07950":"Morris Plains","07960":"Morristown","07961":"Convent Station","07962":"Morristown","07963":"Morristown","07046":"Mountain Lakes","07856":"Mount Arlington","07970":"Mount Freedom","08853":"Neshanic Station","07857":"Netcong","07101":"Newark","07102":"Newark","07103":"Newark","07104":"Newark","07105":"Newark","07106":"Newark","07107":"Newark","07108":"Newark","07109":"Belleville","07110":"Nutley","07111":"Irvington","07112":"Newark","07114":"Newark","07175":"Newark","07184":"Newark","07188":"Newark","07189":"Newark","07191":"Newark","07192":"Newark","07193":"Newark","07195":"Newark","07198":"Newark","07199":"Newark","08901":"New Brunswick","08902":"North Brunswick","08903":"New Brunswick","08904":"Highland Park","08905":"New Brunswick","08906":"New Brunswick","08933":"New Brunswick","08989":"New Brunswick","07435":"Newfoundland","07646":"New Milford","07974":"New Providence","07860":"Newton","07976":"New Vernon","07047":"North Bergen","07647":"Northvale","07648":"Norwood","07436":"Oakland","07438":"Oak Ridge","07439":"Ogdensburg","08857":"Old Bridge","08858":"Oldwick","07649":"Oradell","07050":"Orange","07051":"Orange","07052":"West Orange","07863":"Oxford","07650":"Palisades Park","07652":"Paramus","07653":"Paramus","07656":"Park Ridge","08859":"Parlin","07054":"Parsippany","07055":"Passaic","07057":"Wallington","07501":"Paterson","07502":"Paterson","07503":"Paterson","07504":"Paterson","07505":"Paterson","07506":"Hawthorne","07507":"Hawthorne","07508":"Haledon","07509":"Paterson","07510":"Paterson","07511":"Totowa","07512":"Totowa","07513":"Paterson","07514":"Paterson","07522":"Paterson","07524":"Paterson","07533":"Paterson","07538":"Haledon","07543":"Paterson","07544":"Paterson","07977":"Peapack","07440":"Pequannock","08861":"Perth Amboy","08862":"Perth Amboy","08863":"Fords","08865":"Phillipsburg","07058":"Pine Brook","08854":"Piscataway","08855":"Piscataway","08867":"Pittstown","07059":"Warren","07060":"Plainfield","07061":"Plainfield","07062":"Plainfield","07063":"Plainfield","07069":"Watchung","07978":"Pluckemin","07442":"Pompton Lakes","07444":"Pompton Plains","07865":"Port Murray","07064":"Port Reading","07979":"Pottersville","08868":"Quakertown","07065":"Rahway","07066":"Clark","07067":"Colonia","07446":"Ramsey","08869":"Raritan","08870":"Readington","07657":"Ridgefield","07660":"Ridgefield Park","07450":"Ridgewood","07451":"Ridgewood","07452":"Glen Rock","07456":"Ringwood","07457":"Riverdale","07661":"River Edge","07662":"Rochelle Park","07663":"Saddle Brook","07866":"Rockaway","07068":"Roseland","07070":"Rutherford","07071":"Lyndhurst","07072":"Carlstadt","07073":"East Rutherford","07074":"Moonachie","07075":"Wood Ridge","07458":"Saddle River","08871":"Sayreville","08872":"Sayreville","07870":"Schooleys Mountain","07076":"Scotch Plains","07094":"Secaucus","07096":"Secaucus","07077":"Sewaren","07078":"Short Hills","08873":"Somerset","08875":"Somerset","08890":"Zarephath","08876":"Somerville","08879":"South Amboy","08880":"South Bound Brook","07079":"South Orange","07080":"South Plainfield","08882":"South River","07871":"Sparta","08884":"Spotswood","07081":"Springfield","07874":"Stanhope","08885":"Stanton","08886":"Stewartsville","07875":"Stillwater","07980":"Stirling","07460":"Stockholm","07876":"Succasunna","07901":"Summit","07902":"Summit","07461":"Sussex","07877":"Swartswood","07878":"Mount Tabor","07666":"Teaneck","07670":"Tenafly","08887":"Three Bridges","07082":"Towaco","07879":"Tranquility","07083":"Union","07086":"Weehawken","07087":"Union City","07088":"Vauxhall","07462":"Vernon","07880":"Vienna","07463":"Waldwick","07881":"Wallpack Center","07465":"Wanaque","07882":"Washington","07470":"Wayne","07474":"Wayne","07090":"Westfield","07091":"Westfield","07092":"Mountainside","07480":"West Milford","08201":"Absecon","08205":"Absecon","07710":"Adelphia","07711":"Allenhurst","08501":"Allentown","08720":"Allenwood","08001":"Alloway","07712":"Asbury Park","08004":"Atco","08401":"Atlantic City","08402":"Margate City","08403":"Longport","08404":"Atlantic City","08405":"Atlantic City","08406":"Ventnor City","07716":"Atlantic Highlands","08202":"Avalon","07717":"Avon By The Sea","08005":"Barnegat","08006":"Barnegat Light","08007":"Barrington","08721":"Bayville","08008":"Beach Haven","08722":"Beachwood","07718":"Belford","08502":"Belle Mead","07715":"Belmar","07719":"Belmar","08009":"Berlin","08010":"Beverly","08011":"Birmingham","08012":"Blackwood","08504":"Blawenburg","08505":"Bordentown","07720":"Bradley Beach","08723":"Brick","08724":"Brick","08014":"Bridgeport","08302":"Bridgeton","08730":"Brielle","08203":"Brigantine","08015":"Browns Mills","08310":"Buena","08016":"Burlington","08101":"Camden","08102":"Camden","08103":"Camden","08104":"Camden","08105":"Camden","08106":"Audubon","08107":"Oaklyn","08108":"Collingswood","08109":"Merchantville","08110":"Pennsauken","08204":"Cape May","08210":"Cape May Court House","08212":"Cape May Point","08018":"Cedar Brook","08311":"Cedarville","08019":"Chatsworth","08002":"Cherry Hill","08003":"Cherry Hill","08034":"Cherry Hill","08020":"Clarksboro","08510":"Millstone Township","08526":"Imlaystown","08312":"Clayton","08021":"Clementon","07721":"Cliffwood","08213":"Cologne","07722":"Colts Neck","08022":"Columbus","08511":"Cookstown","08512":"Cranbury","08514":"Cream Ridge","08515":"Chesterfield","07723":"Deal","08023":"Deepwater","08313":"Deerfield Street","08314":"Delmont","08214":"Dennisville","08315":"Dividing Creek","08316":"Dorchester","08317":"Dorothy","07724":"Eatontown","07799":"Eatontown","08215":"Egg Harbor City","08318":"Elmer","08217":"Elwood","07726":"Englishtown","08319":"Estell Manor","08025":"Ewan","08320":"Fairton","07727":"Farmingdale","08518":"Florence","08731":"Forked River","08321":"Fortescue","08322":"Franklinville","07728":"Freehold","08026":"Gibbsboro","08027":"Gibbstown","08028":"Glassboro","08029":"Glendora","08030":"Gloucester City","08218":"Goshen","08219":"Green Creek","08323":"Greenwich","08032":"Grenloch","08033":"Haddonfield","08035":"Haddon Heights","08036":"Hainesport","08037":"Hammonton","08038":"Hancocks Bridge","08039":"Harrisonville","07730":"Hazlet","08324":"Heislerville","07732":"Highlands","08520":"Hightstown","07733":"Holmdel","08525":"Hopewell","07731":"Howell","08732":"Island Heights","08527":"Jackson","08041":"Jobstown","08042":"Juliustown","07734":"Keansburg","07735":"Keyport","08528":"Kingston","08043":"Voorhees","08733":"Lakehurst","08759":"Manchester Township","08701":"Lakewood","08530":"Lambertville","08326":"Landisville","08734":"Lanoka Harbor","08735":"Lavallette","08045":"Lawnside","08220":"Leeds Point","08327":"Leesburg","07737":"Leonardo","07738":"Lincroft","08221":"Linwood","07739":"Little Silver","07740":"Long Branch","08048":"Lumberton","08049":"Magnolia","08328":"Malaga","08050":"Manahawkin","08736":"Manasquan","08738":"Mantoloking","08051":"Mantua","08052":"Maple Shade","07746":"Marlboro","08053":"Marlton","08223":"Marmora","07747":"Matawan","08329":"Mauricetown","08330":"Mays Landing","08055":"Medford","08056":"Mickleton","07748":"Middletown","08332":"Millville","08340":"Milmay","08341":"Minotola","08342":"Mizpah","07750":"Monmouth Beach","08343":"Monroeville","08057":"Moorestown","07751":"Morganville","08059":"Mount Ephraim","08060":"Mount Holly","08054":"Mount Laurel","08061":"Mount Royal","08062":"Mullica Hill","08063":"National Park","07752":"Navesink","07753":"Neptune","07754":"Neptune","08533":"New Egypt","08344":"Newfield","08224":"New Gretna","08064":"New Lisbon","08345":"Newport","08346":"Newtonville","08347":"Norma","08739":"Normandy Beach","08225":"Northfield","07755":"Oakhurst","08226":"Ocean City","08740":"Ocean Gate","07756":"Ocean Grove","07757":"Oceanport","08230":"Ocean View","08231":"Oceanville","08065":"Palmyra","08066":"Paulsboro","08067":"Pedricktown","08068":"Pemberton","08534":"Pennington","08069":"Penns Grove","08070":"Pennsville","08535":"Millstone Township","08741":"Pine Beach","08071":"Pitman","08536":"Plainsboro","08232":"Pleasantville","08234":"Egg Harbor Township","08742":"Point Pleasant Beach","08240":"Pomona","08348":"Port Elizabeth","07758":"Port Monmouth","08349":"Port Norris","08241":"Port Republic","08540":"Princeton","08541":"Princeton","08542":"Princeton","08543":"Princeton","08544":"Princeton","08550":"Princeton Junction","08072":"Quinton","08073":"Rancocas","07701":"Red Bank","07702":"Shrewsbury","07703":"Fort Monmouth","07704":"Fair Haven","07709":"Red Bank","08350":"Richland","08074":"Richwood","08551":"Ringoes","08242":"Rio Grande","08075":"Riverside","08076":"Riverton","08077":"Riverton","08553":"Rocky Hill","08554":"Roebling","08555":"Roosevelt","08556":"Rosemont","08352":"Rosenhayn","07760":"Rumson","08078":"Runnemede","08079":"Salem","08750":"Sea Girt","08243":"Sea Isle City","08751":"Seaside Heights","08752":"Seaside Park","08557":"Sergeantsville","08080":"Sewell","08353":"Shiloh","08081":"Sicklerville","08558":"Skillman","08083":"Somerdale","08244":"Somers Point","08245":"South Dennis","08031":"Bellmawr","08099":"Bellmawr","08246":"South Seaville","07762":"Spring Lake","08559":"Stockton","08247":"Stone Harbor","08084":"Stratford","08248":"Strathmere","08085":"Swedesboro","07763":"Tennent","08086":"Thorofare","08560":"Titusville","08753":"Toms River","08754":"Toms River","08755":"Toms River","08756":"Toms River","08757":"Toms River","08601":"Trenton","08602":"Trenton","08603":"Trenton","08604":"Trenton","08605":"Trenton","08606":"Trenton","08607":"Trenton","08608":"Trenton","08609":"Trenton","08610":"Trenton","08611":"Trenton","08618":"Trenton","08619":"Trenton","08620":"Trenton","08625":"Trenton","08628":"Trenton","08629":"Trenton","08638":"Trenton","08640":"Fort Dix","08641":"Trenton","08645":"Trenton","08646":"Trenton","08647":"Trenton","08648":"Lawrence Township","08650":"Trenton","08666":"Trenton","08690":"Trenton","08691":"Trenton","08695":"Trenton","08250":"Tuckahoe","08087":"Tuckerton","08251":"Villas","08088":"Vincentown","08360":"Vineland","08361":"Vineland","08362":"Vineland","08758":"Waretown","08089":"Waterford Works","08090":"Wenonah","08091":"West Berlin","08092":"West Creek","07764":"West Long Branch","08093":"Westville","08252":"Whitesboro","07765":"Wickatunk","08260":"Wildwood","08094":"Williamstown","08046":"Willingboro","08561":"Windsor","08095":"Winslow","08270":"Woodbine","08096":"Blackwood Ter","08097":"Woodbury Heights","08098":"Woodstown","08562":"Wrightstown","07182":"Shared Firm Zip","07194":"Midlantic National Bank","07309":"General Lafayette","07477":"State Farm Insurance","07983":"Corporate Mailings","08922":"New Brunswick","08988":"New Brunswick","08644":"Trenton"};
+
+// NJOGIS school district polygons (financial-responsibility boundaries,
+// built on the same municipal base map; reviewed annually with NJDOE) and the
+// NJOGIS/NJDOE school point directory (public/charter/non-public).
+const SD_BASE = "https://services2.arcgis.com/XVOqAjTOJ5P6ngMu/ArcGIS/rest/services/";
+const SD_SERVICES = {
+  u: SD_BASE + "School_Districts___Unified/FeatureServer/0/query",
+  e: SD_BASE + "School_Districts___Elementary/FeatureServer/0/query",
+  s: SD_BASE + "School_Districts___Secondary/FeatureServer/0/query"
+};
+const SD_PARAMS = {
+  where: "1=1",
+  outFields: "*",
+  outSR: "4326",
+  f: "geojson",
+  geometryPrecision: "5",
+  maxAllowedOffset: "0.0001",
+  orderByFields: "OBJECTID"
+};
+const SCHOOLS_SERVICE = SD_BASE + "School_Point_Locations_of_NJ/FeatureServer/0/query";
+const SCHOOLS_PARAMS = {
+  where: "CATEGORY=3",   // public schools only
+  outFields: "DIST_CODE,DIST_NAME,SCHOOLNAME,SCHOOL,SCHOOLTYPE",
+  returnGeometry: "false",
+  f: "geojson",
+  orderByFields: "OBJECTID"
+};
+const SD_DB_KEYS = { u: "sd_u:v1", e: "sd_e:v1", s: "sd_s:v1" };
+const SCHOOLS_DB_KEY = "schools:v1";
+
+// NJOGIS legislative (post-2020-census map, in effect since the 2023
+// elections) and congressional district polygons. Field names are
+// self-discovered at load time; see civicLabel().
+const CIVIC_SERVICES = {
+  leg:  SD_BASE + "Legislative_Districts_of_NJ_Hosted_3857/FeatureServer/0/query",
+  cong: SD_BASE + "Congressional_Districts_of_NJ_Hosted_3857/FeatureServer/0/query"
+};
+const CIVIC_DB_KEYS = { leg: "leg:v1", cong: "cong:v1" };
 
 const PAGE_SIZE = 500;
 const DB_KEY = "boundaries:v2";   // v2: now includes type/population/area fields
@@ -431,14 +478,209 @@ function lookupZip(lon, lat) {
   return null;
 }
 
+/* ---- school district stores (generic, one per layer) + schools index ---- */
+
+function normDistrict(raw) {
+  let s = normName(raw || "");
+  s = s.replace(/ School District$/i, "").trim();
+  return s;
+}
+function digitsTail4(v) {
+  const d = String(v == null ? "" : v).replace(/\D/g, "");
+  return d.length >= 4 ? d.slice(-4) : "";
+}
+
+function makeStore() { return { features: [], overall: null, last: -1 }; }
+const SD = { u: makeStore(), e: makeStore(), s: makeStore() };
+
+function buildDistrictFeatures(fc) {
+  const out = [];
+  for (const f of fc.features || []) {
+    const g = f.geometry;
+    if (!g) continue;
+    let rawPolys;
+    if (g.type === "Polygon") rawPolys = [g.coordinates];
+    else if (g.type === "MultiPolygon") rawPolys = g.coordinates;
+    else continue;
+    const polys = rawPolys
+      .map(rings => ({ rings, bbox: bboxOfRings(rings) }))
+      .filter(p => p.rings.length && p.rings[0].length >= 4);
+    if (!polys.length) continue;
+    const props = f.properties || {};
+    let idRaw = "";
+    for (const k of Object.keys(props)) {
+      if (/^NJDOE_ID/i.test(k) && props[k]) { idRaw = props[k]; break; }
+    }
+    out.push({
+      name: normDistrict(props.DIST_NAME || props.NAME),
+      key: digitsTail4(idRaw),
+      polys,
+      bbox: bboxOfRings(rawPolys.flat(1))
+    });
+  }
+  return out;
+}
+
+function storeLookup(store, lon, lat) {
+  const F = store.features;
+  if (!F.length || !store.overall || !inBbox(store.overall, lon, lat)) return null;
+  if (store.last >= 0 && featureContains(F[store.last], lon, lat)) return F[store.last];
+  for (let i = 0; i < F.length; i++) {
+    if (inBbox(F[i].bbox, lon, lat) && featureContains(F[i], lon, lat)) {
+      store.last = i;
+      return F[i];
+    }
+  }
+  const PAD = 0.001, MAXD2 = 5e-8; // ~25 m sliver insurance
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < F.length; i++) {
+    if (!inBbox(F[i].bbox, lon, lat, PAD)) continue;
+    for (const p of F[i].polys) {
+      if (!inBbox(p.bbox, lon, lat, PAD)) continue;
+      for (const ring of p.rings) {
+        for (let k = 0; k < ring.length - 1; k++) {
+          const d = pointSegDist2(lon, lat, ring[k][0], ring[k][1], ring[k + 1][0], ring[k + 1][1]);
+          if (d < bestD) { bestD = d; best = i; }
+        }
+      }
+    }
+  }
+  if (best >= 0 && bestD <= MAXD2) { store.last = best; return F[best]; }
+  store.last = -1;
+  return null;
+}
+
+/* schools: DIST_CODE → { name, hs: [high school names] } */
+let SCHOOLS = null; // Map when loaded
+
+function buildSchoolsIndex(fc) {
+  const idx = new Map();
+  for (const f of fc.features || []) {
+    const p = f.properties || {};
+    const code = digitsTail4(p.DIST_CODE);
+    if (!code) continue;
+    if (!idx.has(code)) {
+      idx.set(code, { name: normDistrict(p.DIST_NAME), hs: [] });
+    }
+    const sname = (p.SCHOOLNAME || p.SCHOOL || "").trim();
+    const stype = (p.SCHOOLTYPE || "").trim();
+    const hay = stype + " " + sname;
+    const isHigh = /high/i.test(hay) && !/(junior|jr\.?|middle|intermediate)/i.test(hay);
+    if (isHigh && sname && !idx.get(code).hs.includes(sname)) {
+      idx.get(code).hs.push(sname);
+    }
+  }
+  return idx;
+}
+
+/* Pure: compose the two display lines from the three district lookups. */
+function districtLines(u, e, s, schoolsIdx) {
+  if (!u && !e && !s) return { dist: "", hs: "" };
+  let dist, hsKey, hsDistName;
+  if (u) {
+    dist = "school district: " + u.name;
+    hsKey = u.key; hsDistName = u.name;
+  } else {
+    const parts = [];
+    if (e) parts.push("school district: " + e.name);
+    if (s && (!e || s.name !== e.name)) parts.push("hs district: " + s.name);
+    dist = parts.join(" · ");
+    hsKey = s ? s.key : (e ? e.key : "");
+    hsDistName = s ? s.name : "";
+  }
+  let hs = "";
+  if (schoolsIdx && hsKey) {
+    const rec = schoolsIdx.get(hsKey);
+    const list = rec ? rec.hs : [];
+    if (list.length === 1) hs = "high school: " + list[0];
+    else if (list.length > 1) {
+      const shown = list.slice(0, 3).join(" · ");
+      hs = "high schools: " + shown + (list.length > 3 ? " (+" + (list.length - 3) + ")" : "");
+    } else {
+      hs = "high school: none on file for this district (send/receive)";
+    }
+  }
+  return { dist, hs };
+}
+
+/* ---- legislative + congressional stores ---- */
+
+const CIVIC = { leg: makeStore(), cong: makeStore() };
+
+/* The exact attribute schema for these layers couldn't be pre-verified, so we
+   fetch all fields and self-discover the district identifier, validating that
+   numeric values are in range (1-40 legislative, 1-12 congressional). */
+function civicLabel(props, kind) {
+  const max = kind === "cong" ? 12 : 40;
+  const prefer = kind === "cong"
+    ? ["DISTRICT", "CONG_DIST", "CD", "DIST", "DIST_NUM", "DIST_LABEL", "NAME", "LABEL"]
+    : ["DISTRICT", "LEG_DIST", "LD", "DIST", "DIST_NUM", "DIST_LABEL", "NAME", "LABEL"];
+  const clean = v => String(v).trim().replace(/^district\s*/i, "");
+  const plausible = v => {
+    const s = clean(v);
+    if (!s) return false;
+    const n = parseInt(s, 10);
+    return isNaN(n) ? s.length <= 24 : (n >= 1 && n <= max);
+  };
+  for (const k of prefer) {
+    if (props[k] != null && plausible(props[k])) return clean(props[k]);
+  }
+  for (const k of Object.keys(props)) {
+    if (/DIST/i.test(k) && props[k] != null && plausible(props[k])) return clean(props[k]);
+  }
+  return "";
+}
+
+function buildCivicFeatures(fc, kind) {
+  const out = [];
+  let logged = false;
+  for (const f of fc.features || []) {
+    const g = f.geometry;
+    if (!g) continue;
+    let rawPolys;
+    if (g.type === "Polygon") rawPolys = [g.coordinates];
+    else if (g.type === "MultiPolygon") rawPolys = g.coordinates;
+    else continue;
+    const polys = rawPolys
+      .map(rings => ({ rings, bbox: bboxOfRings(rings) }))
+      .filter(p => p.rings.length && p.rings[0].length >= 4);
+    if (!polys.length) continue;
+    const props = f.properties || {};
+    if (!logged) {
+      console.log("where-are-we: " + kind + " layer fields:", Object.keys(props).join(", "));
+      logged = true;
+    }
+    const label = civicLabel(props, kind);
+    if (!label) continue;
+    out.push({ name: label, polys, bbox: bboxOfRings(rawPolys.flat(1)) });
+  }
+  return out;
+}
+
+/* Pure: one attribute per line, Craigslist-form style. */
+function composeLinesFound(f, zipStr, dl, legLabel, congLabel, accuracy, demo) {
+  const lines = [];
+  lines.push(f.county ? f.county + " County, NJ" : "NJ");
+  if (f.type) lines.push("type: " + f.type);
+  if (typeof f.pop === "number") lines.push("pop: " + f.pop.toLocaleString("en-US"));
+  if (typeof f.sqmi === "number") lines.push("area: " + f.sqmi.toFixed(1) + " sq mi");
+  if (zipStr) lines.push(zipStr);
+  if (dl.dist) lines.push(dl.dist);
+  if (dl.hs) lines.push(dl.hs);
+  if (legLabel) lines.push("legislative district: " + legLabel);
+  if (congLabel) lines.push("congressional district: " + congLabel);
+  let marks = "[official municipal boundary]";
+  if (accuracy) marks += " · ±" + Math.round(accuracy) + " m";
+  if (demo) marks += " · [demo location]";
+  lines.push(marks);
+  return lines;
+}
+
 /* ================= data loading ================= */
 
 const statusEl = document.getElementById("status");
 let sMuni = "starting…", sZip = "", sNote = "";
-function renderStatus() {
-  statusEl.innerHTML = [sMuni, sZip, sNote].filter(Boolean).join(" · ");
-  wireStatusLinks();
-}
+function renderStatus() { renderStatusAll(); }
 const setStatus = (html) => { sMuni = html; renderStatus(); };
 const setZipStatus = (html) => { sZip = html; renderStatus(); };
 
@@ -544,6 +786,116 @@ async function downloadZctas() {
   }
 }
 
+/* ---- school district + schools loaders (independent; app fine without) ---- */
+
+let sdLoaded = 0;
+function sdStatusUpdate(msg) {
+  setSchoolStatus(msg || (
+    (sdLoaded === 3 && SCHOOLS)
+      ? "districts+schools: ready"
+      : "districts+schools: loading (" + sdLoaded + "/3" + (SCHOOLS ? "+schools" : "") + ")"
+  ));
+}
+let sSchool = "";
+function setSchoolStatus(html) { sSchool = html; renderStatusAll(); }
+function renderStatusAll() {
+  statusEl.innerHTML = [sMuni, sZip, sSchool, sCivic, sNote].filter(Boolean).join(" · ");
+  wireStatusLinks();
+}
+
+async function loadSD(kind) {
+  try {
+    const cached = await kvGet(SD_DB_KEYS[kind]);
+    if (cached) { installSD(kind, JSON.parse(cached)); return; }
+  } catch (e) { /* network */ }
+  try {
+    let fc;
+    try {
+      fc = await fetchAllPages(SD_SERVICES[kind], SD_PARAMS, {}, "sd");
+    } catch (e) {
+      fc = await fetchAllPages(SD_SERVICES[kind], SD_PARAMS, { maxAllowedOffset: "" }, "sd");
+    }
+    if (!fc.features.length) throw new Error("empty");
+    await kvSet(SD_DB_KEYS[kind], JSON.stringify(fc)).catch(() => {});
+    installSD(kind, fc);
+  } catch (e) {
+    setSchoolStatus('district layer failed — <a id="retrysd">retry</a>');
+  }
+}
+
+function installSD(kind, fc) {
+  const store = SD[kind];
+  store.features = buildDistrictFeatures(fc);
+  store.overall = store.features.length ? overallBbox(store.features) : null;
+  store.last = -1;
+  sdLoaded += 1;
+  sdStatusUpdate();
+  if (lastFix) onFix(lastFix, true);
+}
+
+async function loadSchools() {
+  try {
+    const cached = await kvGet(SCHOOLS_DB_KEY);
+    if (cached) { SCHOOLS = buildSchoolsIndex(JSON.parse(cached)); sdStatusUpdate(); if (lastFix) onFix(lastFix, true); return; }
+  } catch (e) { /* network */ }
+  try {
+    const fc = await fetchAllPages(SCHOOLS_SERVICE, SCHOOLS_PARAMS, {}, "sd");
+    if (!fc.features.length) throw new Error("empty");
+    await kvSet(SCHOOLS_DB_KEY, JSON.stringify(fc)).catch(() => {});
+    SCHOOLS = buildSchoolsIndex(fc);
+    sdStatusUpdate();
+    if (lastFix) onFix(lastFix, true);
+  } catch (e) {
+    setSchoolStatus('school directory failed — <a id="retrysd">retry</a>');
+  }
+}
+
+function loadAllSchoolData() {
+  loadSD("u"); loadSD("e"); loadSD("s"); loadSchools();
+}
+
+/* ---- legislative + congressional loaders ---- */
+
+let sCivic = "";
+let civicLoaded = 0;
+function setCivicStatus(html) { sCivic = html; renderStatusAll(); }
+
+async function loadCivic(kind) {
+  try {
+    const cached = await kvGet(CIVIC_DB_KEYS[kind]);
+    if (cached) { installCivic(kind, JSON.parse(cached)); return; }
+  } catch (e) { /* network */ }
+  try {
+    let fc;
+    try {
+      fc = await fetchAllPages(CIVIC_SERVICES[kind], SD_PARAMS, {}, "civic");
+    } catch (e) {
+      fc = await fetchAllPages(CIVIC_SERVICES[kind], SD_PARAMS, { maxAllowedOffset: "" }, "civic");
+    }
+    if (!fc.features.length) throw new Error("empty");
+    await kvSet(CIVIC_DB_KEYS[kind], JSON.stringify(fc)).catch(() => {});
+    installCivic(kind, fc);
+  } catch (e) {
+    setCivicStatus('leg/cong layer failed — <a id="retrycivic">retry</a>');
+  }
+}
+
+function installCivic(kind, fc) {
+  const store = CIVIC[kind];
+  store.features = buildCivicFeatures(fc, kind);
+  store.overall = store.features.length ? overallBbox(store.features) : null;
+  store.last = -1;
+  civicLoaded += 1;
+  if (!store.features.length) {
+    setCivicStatus("leg/cong: no district field found (see console)");
+  } else {
+    setCivicStatus(civicLoaded >= 2 ? "leg+cong: ready" : "leg+cong: loading (1/2)");
+  }
+  if (lastFix) onFix(lastFix, true);
+}
+
+function loadCivicLayers() { loadCivic("leg"); loadCivic("cong"); }
+
 function wireStatusLinks() {
   const r = document.getElementById("retry");
   if (r) r.onclick = downloadBoundaries;
@@ -553,6 +905,10 @@ function wireStatusLinks() {
   if (d) d.onclick = downloadBoundaries;
   const z = document.getElementById("retryzip");
   if (z) z.onclick = downloadZctas;
+  const sd = document.getElementById("retrysd");
+  if (sd) sd.onclick = loadAllSchoolData;
+  const cv = document.getElementById("retrycivic");
+  if (cv) cv.onclick = loadCivicLayers;
 }
 
 /* ================= map ================= */
@@ -657,31 +1013,26 @@ function renderRows() {
 /* ================= location ================= */
 
 const townName = document.getElementById("townname");
-const townMeta = document.getElementById("townmeta");
-const townStats = document.getElementById("townstats");
-const townZip = document.getElementById("townzip");
+const townLines = document.getElementById("townlines");
+
+function renderLines(lines) {
+  townLines.innerHTML = "";
+  for (const text of lines) {
+    const d = document.createElement("div");
+    d.className = "sub";
+    d.textContent = text;
+    townLines.appendChild(d);
+  }
+}
 let current = null;
 let lastFix = null;
 let demoMode = false;
-
-function setSub(el, text) {
-  el.textContent = text || "";
-  el.style.display = text ? "" : "none";
-}
-
-function statsLine(f) {
-  const parts = [];
-  if (f.type) parts.push(f.type);
-  if (typeof f.pop === "number") parts.push("pop " + f.pop.toLocaleString("en-US"));
-  if (typeof f.sqmi === "number") parts.push(f.sqmi.toFixed(1) + " sq mi");
-  return parts.join(" · ");
-}
 
 function zipLine(lon, lat) {
   const z = lookupZip(lon, lat);
   if (!z) return "";
   const name = ZIPNAMES[z.zip];
-  return "zip " + z.zip + (name ? " (" + name + ")" : "");
+  return "zip: " + z.zip + (name ? " (" + name + ")" : "");
 }
 
 function onFix(fix, silent) {
@@ -692,21 +1043,28 @@ function onFix(fix, silent) {
   current = f;
   if (f) {
     townName.textContent = f.name;
-    townMeta.textContent = (f.county ? f.county + " County, NJ" : "NJ") +
-      "  [official municipal boundary]" +
-      (accuracy ? "  ±" + Math.round(accuracy) + " m" : "") +
-      (demoMode ? "  [demo location]" : "");
-    setSub(townStats, statsLine(f));
-    setSub(townZip, zipLine(lon, lat));
+    const dl = districtLines(storeLookup(SD.u, lon, lat),
+                             storeLookup(SD.e, lon, lat),
+                             storeLookup(SD.s, lon, lat), SCHOOLS);
+    const leg = storeLookup(CIVIC.leg, lon, lat);
+    const cong = storeLookup(CIVIC.cong, lon, lat);
+    renderLines(composeLinesFound(
+      f, zipLine(lon, lat), dl,
+      leg ? leg.name : "", cong ? cong.name : "",
+      accuracy, demoMode
+    ));
     highlight(f);
     recordVisit(f, lat, lon);
   } else {
     townName.textContent = FEATURES.length ? "outside New Jersey" : "locating…";
-    townMeta.textContent = lat.toFixed(4) + ", " + lon.toFixed(4) +
-      (FEATURES.length ? "" : " — waiting for boundary data") +
-      (demoMode ? "  [demo location]" : "");
-    setSub(townStats, "");
-    setSub(townZip, zipLine(lon, lat)); // border fringe: zip can be known outside NJ
+    const lines = [
+      lat.toFixed(4) + ", " + lon.toFixed(4) +
+        (FEATURES.length ? "" : " — waiting for boundary data") +
+        (demoMode ? "  [demo location]" : "")
+    ];
+    const z = zipLine(lon, lat); // border fringe: zip can be known outside NJ
+    if (z) lines.push(z);
+    renderLines(lines);
     highlight(null);
     if (!silent) renderRows();
   }
@@ -792,6 +1150,8 @@ document.getElementById("filepick").onchange = async function () {
 renderRows();
 ensureBoundaries();
 ensureZctas();
+loadAllSchoolData();
+loadCivicLayers();
 startLocating();
 </script>
 </body>
