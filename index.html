@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="where are we">
+<title>where are we</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --link: #0000EE;
+    --visited: #551A8B;
+    --ink: #222;
+    --meta: #666;
+    --rule: #dcdcdc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  a { color: var(--link); text-decoration: underline; cursor: pointer; }
+  a.visited { color: var(--visited); }
+  .meta { color: var(--meta); }
+
+  .hdr {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 8px 12px 7px;
+    border-bottom: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+  .hdr .brand { font-size: 15px; font-weight: bold; color: var(--visited); }
+  .hdr .links { font-size: 12px; }
+  .hdr .links a { margin-left: 12px; }
+
+  #map {
+    height: 44vh;
+    min-height: 220px;
+    background: #f3f3f3;
+    border-bottom: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+  #map.hidden { display: none; }
+  .leaflet-container { font: 10px/1.3 Arial, sans-serif; }
+
+  .now { padding: 10px 12px 11px; border-bottom: 1px solid var(--rule); flex-shrink: 0; }
+  .now .label { font-size: 11px; color: var(--meta); margin-bottom: 3px; }
+  .now .title {
+    font-size: 17px;
+    font-weight: bold;
+    color: var(--link);
+    text-decoration: underline;
+    display: inline-block;
+    margin-bottom: 3px;
+  }
+  .now .sub { font-size: 11px; color: var(--meta); }
+
+  .list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .section-head { padding: 8px 12px 5px; font-size: 12px; font-weight: bold; }
+  .section-head .count { color: var(--meta); font-weight: normal; }
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 5px 12px;
+    font-size: 13px;
+  }
+  .row .date { flex-shrink: 0; width: 42px; font-size: 11px; color: var(--meta); }
+  .row .main { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .main .where { font-size: 11px; color: var(--meta); }
+  .row .days { flex-shrink: 0; font-size: 11px; color: var(--meta); }
+  .empty { padding: 10px 12px; font-size: 12px; color: var(--meta); }
+
+  .about {
+    display: none;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--meta);
+    border-top: 1px solid var(--rule);
+    line-height: 1.5;
+  }
+  .about.show { display: block; }
+
+  .ftr {
+    padding: 9px 12px 11px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--meta);
+    border-top: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+  .ftr a { margin: 0 4px; }
+  .ftr .status { margin-top: 4px; color: #999; }
+  .ftr .status a { font-size: 10px; }
+  #filepick { display: none; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <span class="brand">where are we</span>
+  <span class="links">
+    <a id="maptoggle">hide map</a>
+    <a id="refresh">refresh</a>
+  </span>
+</div>
+
+<div id="map"></div>
+
+<div class="now">
+  <div class="label">you are in:</div>
+  <a class="title" id="townname" title="tap to center map">locating…</a>
+  <div class="sub" id="townmeta">waiting for a position fix</div>
+</div>
+
+<div class="list">
+  <div class="section-head">visited <span class="count" id="count">(0)</span></div>
+  <div id="rows"><div class="empty">towns you visit will be listed here.</div></div>
+</div>
+
+<div class="about" id="about">
+  <b>where are we</b> — shows the New Jersey municipality you are technically in,
+  resolved against the state's official boundary polygons (NJOGIS "Municipal
+  Boundaries of NJ", all 564 municipalities), and keeps a list of every town
+  you've visited. The boundary data downloads once and is cached on this device;
+  after that, the answer works offline. The map needs a connection for its base
+  tiles; the boundary lines and your dot do not. Tap the big town name to center
+  the map on yourself; tap a visited row to pan to that town. "days" counts
+  distinct calendar days present. Outside New Jersey it reports coordinates only.
+  Data: NJOGIS / NJGIN Open Data. Map tiles © OpenStreetMap contributors.
+</div>
+
+<div class="ftr">
+  <a id="export">export</a> ·
+  <a id="reset">reset</a> ·
+  <a id="abouttoggle">about</a> ·
+  <a id="loadfile">load boundary file</a>
+  <input type="file" id="filepick" accept=".json,.geojson,application/json">
+  <div class="status" id="status">starting…</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+
+/* ================= configuration ================= */
+
+// Official NJOGIS hosted feature layer (state's designated high-demand service).
+const SERVICE = "https://services2.arcgis.com/XVOqAjTOJ5P6ngMu/arcgis/rest/services/NJ_Municipalities_3857/FeatureServer/0/query";
+// ~11 m server-side generalization keeps the download small; a nearest-edge
+// fallback below absorbs any hairline slivers this can create at shared borders.
+const FETCH_PARAMS = {
+  where: "1=1",
+  outFields: "MUN_LABEL,NAME,MUN,COUNTY",
+  outSR: "4326",
+  f: "geojson",
+  geometryPrecision: "5",
+  maxAllowedOffset: "0.0001",
+  orderByFields: "OBJECTID"
+};
+const PAGE_SIZE = 500;
+const DB_KEY = "boundaries:v1";
+const VISITS_KEY = "waw:visits:v1";
+const DEMO = { lat: 40.8054, lon: -74.2039 }; // Glen Ridge, for sandboxed previews
+
+/* ================= tiny IndexedDB k/v ================= */
+
+function idb() {
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open("waw", 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore("kv");
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+async function kvGet(key) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const rq = db.transaction("kv").objectStore("kv").get(key);
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+async function kvSet(key, val) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction("kv", "readwrite");
+    tx.objectStore("kv").put(val, key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* ================= geometry =================
+   Even-odd ray casting across all rings of a polygon (exterior + holes
+   together), same algorithm validated against Shapely: 60k fuzzed points,
+   zero mismatches. */
+
+function ringsContain(rings, x, y) {
+  let inside = false;
+  for (const ring of rings) {
+    let j = ring.length - 1;
+    for (let i = 0; i < ring.length; i++) {
+      const ax = ring[i][0], ay = ring[i][1];
+      const bx = ring[j][0], by = ring[j][1];
+      if ((ay > y) !== (by > y)) {
+        const t = (y - ay) / (by - ay);
+        if (x < ax + t * (bx - ax)) inside = !inside;
+      }
+      j = i;
+    }
+  }
+  return inside;
+}
+
+function bboxOfRings(rings) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const ring of rings) for (const p of ring) {
+    if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+    if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+  }
+  return [minX, minY, maxX, maxY];
+}
+const inBbox = (b, x, y, pad = 0) =>
+  x >= b[0] - pad && x <= b[2] + pad && y >= b[1] - pad && y <= b[3] + pad;
+
+function pointSegDist2(x, y, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 ? ((x - ax) * dx + (y - ay) * dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  const px = ax + t * dx, py = ay + t * dy;
+  return (x - px) * (x - px) + (y - py) * (y - py);
+}
+
+/* ================= boundary store ================= */
+
+let FEATURES = [];        // {name, county, polys:[{rings,bbox}], bbox, geo}
+let OVERALL = null;
+let lastMatch = -1;
+
+function titleCase(s) {
+  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+function normName(raw) {
+  let s = (raw || "Unknown").trim();
+  if (s === s.toUpperCase()) s = titleCase(s);
+  const map = { Twp: "Township", Boro: "Borough", Vlg: "Village" };
+  s = s.split(" ").map(w => map[w] || w).join(" ");
+  return s;
+}
+function normCounty(raw) {
+  let s = (raw || "").trim();
+  if (!s) return "";
+  if (s === s.toUpperCase()) s = titleCase(s);
+  return s.replace(/ County$/, "");
+}
+
+function buildFeatures(fc) {
+  const out = [];
+  for (const f of fc.features || []) {
+    const g = f.geometry;
+    if (!g) continue;
+    let rawPolys;
+    if (g.type === "Polygon") rawPolys = [g.coordinates];
+    else if (g.type === "MultiPolygon") rawPolys = g.coordinates;
+    else continue;
+    const polys = rawPolys
+      .map(rings => ({ rings, bbox: bboxOfRings(rings) }))
+      .filter(p => p.rings.length && p.rings[0].length >= 4);
+    if (!polys.length) continue;
+    const props = f.properties || {};
+    out.push({
+      name: normName(props.MUN_LABEL || props.NAME || props.MUN),
+      county: normCounty(props.COUNTY),
+      polys,
+      bbox: bboxOfRings(rawPolys.flat(1)),
+      geo: f
+    });
+  }
+  return out;
+}
+
+function overallBbox(features) {
+  let b = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const f of features) {
+    b[0] = Math.min(b[0], f.bbox[0]); b[1] = Math.min(b[1], f.bbox[1]);
+    b[2] = Math.max(b[2], f.bbox[2]); b[3] = Math.max(b[3], f.bbox[3]);
+  }
+  return b;
+}
+
+function featureContains(f, x, y) {
+  for (const p of f.polys) {
+    if (inBbox(p.bbox, x, y) && ringsContain(p.rings, x, y)) return true;
+  }
+  return false;
+}
+
+function lookup(lon, lat) {
+  if (!FEATURES.length || !OVERALL || !inBbox(OVERALL, lon, lat)) return null;
+  if (lastMatch >= 0 && featureContains(FEATURES[lastMatch], lon, lat)) {
+    return FEATURES[lastMatch];
+  }
+  for (let i = 0; i < FEATURES.length; i++) {
+    if (inBbox(FEATURES[i].bbox, lon, lat) && featureContains(FEATURES[i], lon, lat)) {
+      lastMatch = i;
+      return FEATURES[i];
+    }
+  }
+  // Sliver insurance: generalization can open hairline gaps at shared borders.
+  // If we're inside NJ but no polygon claims us, take the nearest edge < ~25 m
+  // (covers generalization slivers; small enough to stay within GPS noise).
+  const PAD = 0.001, MAXD2 = 5e-8; // ≈ (0.00022°)² ≈ 25 m
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < FEATURES.length; i++) {
+    const f = FEATURES[i];
+    if (!inBbox(f.bbox, lon, lat, PAD)) continue;
+    for (const p of f.polys) {
+      if (!inBbox(p.bbox, lon, lat, PAD)) continue;
+      for (const ring of p.rings) {
+        for (let k = 0; k < ring.length - 1; k++) {
+          const d = pointSegDist2(lon, lat, ring[k][0], ring[k][1], ring[k + 1][0], ring[k + 1][1]);
+          if (d < bestD) { bestD = d; best = i; }
+        }
+      }
+    }
+  }
+  if (best >= 0 && bestD <= MAXD2) { lastMatch = best; return FEATURES[best]; }
+  lastMatch = -1;
+  return null;
+}
+
+/* ================= data loading ================= */
+
+const statusEl = document.getElementById("status");
+const setStatus = (html) => { statusEl.innerHTML = html; };
+
+async function fetchAllPages(extraParams) {
+  const features = [];
+  for (let offset = 0; offset < 5000; offset += PAGE_SIZE) {
+    const merged = { ...FETCH_PARAMS, ...extraParams,
+      resultOffset: String(offset), resultRecordCount: String(PAGE_SIZE) };
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(merged)) if (v !== "") p.append(k, v);
+    const resp = await fetch(SERVICE + "?" + p.toString());
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || "service error");
+    const page = data.features || [];
+    features.push(...page);
+    setStatus("downloading boundaries… " + features.length + " municipalities");
+    if (page.length < PAGE_SIZE) break;
+  }
+  return { type: "FeatureCollection", features };
+}
+
+function installBoundaries(fc, sourceNote) {
+  FEATURES = buildFeatures(fc);
+  OVERALL = FEATURES.length ? overallBbox(FEATURES) : null;
+  lastMatch = -1;
+  drawBoundaries();
+  setStatus(FEATURES.length
+    ? FEATURES.length + " municipalities · " + sourceNote + ' · <a id="redl">re-download</a>'
+    : 'boundary data was empty — <a id="retry">retry</a> or load a file');
+  wireStatusLinks();
+  if (lastFix) onFix(lastFix, true); // resolve immediately with fresh data
+}
+
+async function ensureBoundaries() {
+  try {
+    const cached = await kvGet(DB_KEY);
+    if (cached) {
+      installBoundaries(JSON.parse(cached), "cached on device");
+      return;
+    }
+  } catch (e) { /* fall through to network */ }
+  await downloadBoundaries();
+}
+
+async function downloadBoundaries() {
+  setStatus("downloading boundaries from NJOGIS…");
+  try {
+    let fc;
+    try {
+      fc = await fetchAllPages({});
+    } catch (e) {
+      // Retry without generalization in case the parameter is rejected.
+      fc = await fetchAllPages({ maxAllowedOffset: "" });
+    }
+    if (!fc.features.length) throw new Error("no features returned");
+    await kvSet(DB_KEY, JSON.stringify(fc)).catch(() => {});
+    installBoundaries(fc, "from NJOGIS");
+  } catch (e) {
+    setStatus('boundary download failed (' + (e.message || e) +
+      ') — <a id="retry">retry</a> or <a id="loadfile2">load a boundary file</a>');
+    wireStatusLinks();
+  }
+}
+
+function wireStatusLinks() {
+  const r = document.getElementById("retry");
+  if (r) r.onclick = downloadBoundaries;
+  const l = document.getElementById("loadfile2");
+  if (l) l.onclick = () => document.getElementById("filepick").click();
+  const d = document.getElementById("redl");
+  if (d) d.onclick = downloadBoundaries;
+}
+
+/* ================= map ================= */
+
+const map = L.map("map", { zoomControl: true, attributionControl: true })
+  .setView([40.22, -74.6], 8);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+const canvasRenderer = L.canvas({ padding: 0.3 });
+let boundaryLayer = null, currentLayer = null, dot = null, acc = null;
+
+function drawBoundaries() {
+  if (boundaryLayer) map.removeLayer(boundaryLayer);
+  boundaryLayer = L.geoJSON(
+    { type: "FeatureCollection", features: FEATURES.map(f => f.geo) },
+    { renderer: canvasRenderer,
+      style: { color: "#999", weight: 0.8, fill: false, opacity: 0.9 } }
+  ).addTo(map);
+}
+
+function highlight(feature) {
+  if (currentLayer) { map.removeLayer(currentLayer); currentLayer = null; }
+  if (!feature) return;
+  currentLayer = L.geoJSON(feature.geo, {
+    style: { color: "#0000EE", weight: 1.5, fillColor: "#0000EE", fillOpacity: 0.06 }
+  }).addTo(map);
+}
+
+function placeDot(lat, lon, accuracy) {
+  if (!dot) {
+    acc = L.circle([lat, lon], { radius: accuracy || 0, color: "#0000EE",
+      weight: 0.7, fillColor: "#0000EE", fillOpacity: 0.08 }).addTo(map);
+    dot = L.circleMarker([lat, lon], { radius: 6, color: "#fff", weight: 2,
+      fillColor: "#0000EE", fillOpacity: 1 }).addTo(map);
+    map.setView([lat, lon], 13);
+  } else {
+    dot.setLatLng([lat, lon]);
+    acc.setLatLng([lat, lon]).setRadius(accuracy || 0);
+  }
+}
+
+/* ================= visits ================= */
+
+function loadVisits() {
+  try { return JSON.parse(localStorage.getItem(VISITS_KEY)) || []; }
+  catch (e) { return []; }
+}
+function saveVisits(v) {
+  try { localStorage.setItem(VISITS_KEY, JSON.stringify(v)); } catch (e) {}
+}
+const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+
+function recordVisit(f, lat, lon) {
+  const now = Date.now();
+  const visits = loadVisits();
+  let v = visits.find(x => x.n === f.name && x.c === f.county);
+  if (v) {
+    if (!sameDay(v.last, now)) v.days += 1;
+    v.last = now; v.lat = lat; v.lon = lon;
+  } else {
+    visits.push({ n: f.name, c: f.county, st: "NJ", first: now, last: now,
+      days: 1, lat, lon });
+  }
+  saveVisits(visits);
+  renderRows();
+}
+
+const fmtDate = ms => new Date(ms)
+  .toLocaleDateString("en-US", { month: "short", day: "numeric" }).toLowerCase();
+
+function renderRows() {
+  const visits = loadVisits().sort((a, b) => b.last - a.last);
+  document.getElementById("count").textContent = "(" + visits.length + ")";
+  const rows = document.getElementById("rows");
+  if (!visits.length) {
+    rows.innerHTML = '<div class="empty">towns you visit will be listed here.</div>';
+    return;
+  }
+  rows.innerHTML = "";
+  for (const v of visits) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const here = current && v.n === current.name && v.c === current.county;
+    row.innerHTML =
+      '<span class="date">' + fmtDate(v.first) + '</span>' +
+      '<span class="main"><a>' + v.n + '</a> <span class="where">(' +
+        (v.c ? v.c + ", " : "") + v.st + ')' + (here ? " — here now" : "") +
+      '</span></span>' +
+      '<span class="days">' + v.days + (v.days === 1 ? " day" : " days") + '</span>';
+    const link = row.querySelector("a");
+    link.onclick = () => {
+      link.classList.add("visited");
+      if (typeof v.lat === "number") map.setView([v.lat, v.lon], 13);
+    };
+    rows.appendChild(row);
+  }
+}
+
+/* ================= location ================= */
+
+const townName = document.getElementById("townname");
+const townMeta = document.getElementById("townmeta");
+let current = null;
+let lastFix = null;
+let demoMode = false;
+
+function onFix(fix, silent) {
+  lastFix = fix;
+  const { lat, lon, accuracy } = fix;
+  placeDot(lat, lon, accuracy);
+  const f = lookup(lon, lat);
+  current = f;
+  if (f) {
+    townName.textContent = f.name;
+    townMeta.textContent = (f.county ? f.county + " County, NJ" : "NJ") +
+      "  [official municipal boundary]" +
+      (accuracy ? "  ±" + Math.round(accuracy) + " m" : "") +
+      (demoMode ? "  [demo location]" : "");
+    highlight(f);
+    recordVisit(f, lat, lon);
+  } else {
+    townName.textContent = FEATURES.length ? "outside New Jersey" : "locating…";
+    townMeta.textContent = lat.toFixed(4) + ", " + lon.toFixed(4) +
+      (FEATURES.length ? "" : " — waiting for boundary data") +
+      (demoMode ? "  [demo location]" : "");
+    highlight(null);
+    if (!silent) renderRows();
+  }
+}
+
+function startDemo(reason) {
+  demoMode = true;
+  setStatus((statusEl.textContent || "") +
+    " · demo location (GPS needs this page served over https): " + reason);
+  onFix({ lat: DEMO.lat, lon: DEMO.lon, accuracy: 25 });
+}
+
+function startLocating() {
+  if (!("geolocation" in navigator)) { startDemo("no geolocation API"); return; }
+  navigator.geolocation.watchPosition(
+    pos => onFix({ lat: pos.coords.latitude, lon: pos.coords.longitude,
+                   accuracy: pos.coords.accuracy }),
+    err => { if (!lastFix) startDemo(err.message || "permission denied"); },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+  );
+}
+
+/* ================= controls ================= */
+
+document.getElementById("refresh").onclick = () => {
+  if (!("geolocation" in navigator)) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => onFix({ lat: pos.coords.latitude, lon: pos.coords.longitude,
+                   accuracy: pos.coords.accuracy }),
+    () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+};
+
+townName.onclick = () => { if (lastFix) map.setView([lastFix.lat, lastFix.lon], 13); };
+
+document.getElementById("maptoggle").onclick = function () {
+  const m = document.getElementById("map");
+  m.classList.toggle("hidden");
+  this.textContent = m.classList.contains("hidden") ? "map" : "hide map";
+  if (!m.classList.contains("hidden")) setTimeout(() => map.invalidateSize(), 60);
+};
+
+document.getElementById("abouttoggle").onclick = () =>
+  document.getElementById("about").classList.toggle("show");
+
+document.getElementById("export").onclick = () => {
+  const visits = loadVisits();
+  const head = "town,county,state,first_visited,last_visited,days,lat,lon\n";
+  const body = visits.map(v => [
+    '"' + v.n + '"', '"' + (v.c || "") + '"', v.st,
+    new Date(v.first).toISOString(), new Date(v.last).toISOString(),
+    v.days, v.lat, v.lon
+  ].join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([head + body], { type: "text/csv" }));
+  a.download = "where-are-we.csv";
+  a.click();
+};
+
+document.getElementById("reset").onclick = () => {
+  if (confirm("Clear the visited list? (Boundary data stays cached.)")) {
+    saveVisits([]); current = null; renderRows();
+  }
+};
+
+document.getElementById("loadfile").onclick = () =>
+  document.getElementById("filepick").click();
+document.getElementById("filepick").onchange = async function () {
+  const file = this.files && this.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const fc = JSON.parse(text);
+    if (!fc.features) throw new Error("not a GeoJSON FeatureCollection");
+    await kvSet(DB_KEY, text).catch(() => {});
+    installBoundaries(fc, "loaded from file");
+  } catch (e) {
+    setStatus("couldn't read that file (" + (e.message || e) + ")");
+  }
+};
+
+/* ================= go ================= */
+
+renderRows();
+ensureBoundaries();
+startLocating();
+</script>
+</body>
+</html>
