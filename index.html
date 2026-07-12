@@ -150,7 +150,8 @@
   publishes them. Legislative and congressional district layers are wired into
   the code but currently switched off. The map follows your dot; drag it to
   browse (following stops), and tap the big town name or the "follow" link to
-  snap back. All layers download once and
+  snap back. The "cache" link in the footer shows exactly what is stored on this device,
+  layer by layer. All layers download once and
   are cached on this device; after that, answers work offline. The map needs a
   connection for its base tiles; the boundary lines and your dot do not. Tap the big town name to center
   the map on yourself; tap a visited row to pan to that town. "days" counts
@@ -158,10 +159,13 @@
   Data: NJOGIS / NJGIN Open Data. Map tiles © OpenStreetMap contributors.
 </div>
 
+<div class="about" id="cachepanel"></div>
+
 <div class="ftr">
   <a id="export">export</a> ·
   <a id="reset">reset</a> ·
   <a id="abouttoggle">about</a> ·
+  <a id="cachelink">cache</a> ·
   <a id="loadfile">load boundary file</a>
   <input type="file" id="filepick" accept=".json,.geojson,application/json">
   <div class="status" id="status">starting…</div>
@@ -274,6 +278,15 @@ async function kvSet(key, val) {
   return new Promise((res, rej) => {
     const tx = db.transaction("kv", "readwrite");
     tx.objectStore("kv").put(val, key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function kvDel(key) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction("kv", "readwrite");
+    tx.objectStore("kv").delete(key);
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
@@ -670,6 +683,14 @@ function computeRanks(features) {
   const byArea = features.filter(f => typeof f.sqmi === "number")
     .sort((a, b) => b.sqmi - a.sqmi);
   byArea.forEach((f, i) => { f.sqmiRank = i + 1; f.sqmiOf = byArea.length; });
+}
+
+function formatBytes(n) {
+  if (n == null || isNaN(n)) return "?";
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + " MB";
+  return (n / 1073741824).toFixed(2) + " GB";
 }
 
 /* Pure: one attribute per line, Craigslist-form style. */
@@ -1169,6 +1190,50 @@ document.getElementById("maptoggle").onclick = function () {
 
 document.getElementById("abouttoggle").onclick = () =>
   document.getElementById("about").classList.toggle("show");
+
+const CACHE_LAYERS = [
+  ["towns", DB_KEY],
+  ["zips", ZIP_DB_KEY],
+  ["school districts — unified", SD_DB_KEYS.u],
+  ["school districts — elementary", SD_DB_KEYS.e],
+  ["school districts — secondary", SD_DB_KEYS.s],
+  ["school directory", SCHOOLS_DB_KEY],
+  ["legislative", CIVIC_DB_KEYS.leg],
+  ["congressional", CIVIC_DB_KEYS.cong]
+];
+
+document.getElementById("cachelink").onclick = async () => {
+  const panel = document.getElementById("cachepanel");
+  if (panel.classList.contains("show")) { panel.classList.remove("show"); return; }
+  panel.innerHTML = "measuring…";
+  panel.classList.add("show");
+  const rows = [];
+  let total = 0;
+  for (const [label, key] of CACHE_LAYERS) {
+    let n = 0;
+    try { const v = await kvGet(key); n = v ? v.length : 0; } catch (e) {}
+    if (n > 0) { rows.push(label + ": " + formatBytes(n)); total += n; }
+  }
+  const visitsLen = (localStorage.getItem(VISITS_KEY) || "").length;
+  rows.push("visited list: " + formatBytes(visitsLen));
+  total += visitsLen;
+  rows.push("<b>total cached data: " + formatBytes(total) + "</b>");
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      rows.push("device reports " + formatBytes(est.usage) +
+        " used of a " + formatBytes(est.quota) + " quota for this app");
+    } catch (e) {}
+  }
+  rows.push("(map tiles live in the ordinary browser cache and aren't counted)");
+  rows.push('<a id="clearcache">clear cached layers</a> — they re-download on next open');
+  panel.innerHTML = rows.join("<br>");
+  document.getElementById("clearcache").onclick = async () => {
+    if (!confirm("Clear all cached boundary layers? The visited list is kept. Layers re-download on reload.")) return;
+    for (const [, key] of CACHE_LAYERS) { try { await kvDel(key); } catch (e) {} }
+    location.reload();
+  };
+};
 
 document.getElementById("export").onclick = () => {
   const visits = loadVisits();
