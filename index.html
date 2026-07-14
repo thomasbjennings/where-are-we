@@ -150,7 +150,21 @@
   publishes them. Legislative and congressional district layers are wired into
   the code but currently switched off. The map follows your dot; drag it to
   browse (following stops), and tap the big town name or the "follow" link to
-  snap back. Beyond NJ, nine states are covered — NY, NC, PA, CT, MA, NH, VT, ME, AZ — with Census TIGERweb boundaries
+  snap back. Population and area — with a statewide rank — now appear for every
+  state covered, not just New Jersey: 2020 Census counts joined by GEOID, and
+  land area computed the same way as NJ's. New York additionally carries a
+  school district line, sourced from NYSED's own boundary service, and a
+  best-effort high-school name where a text match succeeds — NY's schools data
+  has no shared numeric code linking district polygons to school points the
+  way NJ's does, so the join is by district name rather than by ID, and stays
+  silent rather than claiming "none on file" when it can't find a match.
+  Inside New York City the high-school line is skipped entirely: the city's
+  ~32 geographic districts govern K-8 only, and high school admission is
+  citywide choice, not tied to home address. The screen is kept awake
+  automatically while the app is open and in view (supported browsers);
+  switching away releases it immediately.
+
+  Beyond NJ, nine states are covered — NY, NC, PA, CT, MA, NH, VT, ME, AZ — with Census TIGERweb boundaries
   (January 2025 vintage), downloaded lazily the first time you're there: in NY,
   towns and cities tile the state and villages sit on top of them, so a village
   address shows both (Connecticut's boroughs work the same way); PA and the New
@@ -314,6 +328,17 @@ const STATE_PACKS = [
   {
     code: "NY",
     pop: { url: C20_PCS + "1/query", where: "STATE='36'", key: "ny_pop:v1" },
+    // NYSED's own service (fresher + more precise than Census for this).
+    schoolDist: {
+      distUrl: "https://gisservices.its.ny.gov/arcgis/rest/services/NYS_Schools/FeatureServer/18/query",
+      distParams: { where: "1=1", outFields: "SCHDIST", outSR: "4326", f: "geojson",
+        geometryPrecision: "5", maxAllowedOffset: "0.0001", orderByFields: "OBJECTID" },
+      schoolsUrl: "https://gisservices.its.ny.gov/arcgis/rest/services/NYS_Schools/FeatureServer/2/query",
+      schoolsParams: { where: "1=1",
+        outFields: "SDL_DESC,LEGAL_NAME,POPULAR_NAME,INST_TYPE_DESC,INSTSUBTYPDESC,DIST_TYPE_DESC",
+        returnGeometry: "false", f: "geojson", orderByFields: "OBJECTID" },
+      distKey: "ny_schooldist:v1", schoolsKey: "ny_schools:v1"
+    },
     bbox: [-79.90, 40.45, -71.75, 45.05],
     zctaEnvelope: "-79.90,40.45,-71.75,45.05",
     zctaKey: "ny_zcta:v1",
@@ -1040,6 +1065,76 @@ function resolvePack(pack, lon, lat) {
   return null;
 }
 
+function normDistrictKey(s) {
+  return String(s || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+}
+
+function buildNySchoolDistricts(fc) {
+  const out = [];
+  for (const f of fc.features || []) {
+    const g = f.geometry;
+    if (!g) continue;
+    let rawPolys;
+    if (g.type === "Polygon") rawPolys = [g.coordinates];
+    else if (g.type === "MultiPolygon") rawPolys = g.coordinates;
+    else continue;
+    const polys = rawPolys.map(rings => ({ rings, bbox: bboxOfRings(rings) }))
+      .filter(p => p.rings.length && p.rings[0].length >= 4);
+    if (!polys.length) continue;
+    let name = ((f.properties || {}).SCHDIST || "").trim();
+    if (!name) continue;
+    if (name === name.toUpperCase()) name = titleCase(name);
+    out.push({ name, polys, bbox: bboxOfRings(rawPolys.flat(1)) });
+  }
+  return out;
+}
+
+/* Groups NY public-school points by their district name text, keeping only
+   apparent high schools. There is no shared numeric code between NYSED's
+   district-polygon layer and its school-point layer (unlike NJ's district
+   codes), so this joins on normalized district name instead — a best-effort
+   match, not a verified key. */
+function buildNySchoolsIndex(fc) {
+  const idx = new Map();
+  for (const f of fc.features || []) {
+    const p = f.properties || {};
+    const distName = (p.SDL_DESC || "").trim();
+    if (!distName) continue;
+    const hay = [p.INST_TYPE_DESC, p.INSTSUBTYPDESC, p.DIST_TYPE_DESC, p.LEGAL_NAME, p.POPULAR_NAME]
+      .filter(Boolean).join(" ");
+    if (!/high/i.test(hay) || /(junior|jr\.?|middle|intermediate)/i.test(hay)) continue;
+    const name = (p.POPULAR_NAME || p.LEGAL_NAME || "").trim();
+    if (!name) continue;
+    const key = normDistrictKey(distName);
+    if (!idx.has(key)) idx.set(key, []);
+    if (!idx.get(key).includes(name)) idx.get(key).push(name);
+  }
+  return idx;
+}
+
+/* Unlike NJ's districtLines(), an unmatched join stays silent (no hs line)
+   rather than asserting "none on file" — that phrase is a verified
+   administrative fact for NJ; here it would be a guess. Pass schoolsIdx=null
+   to skip the high-school line entirely (used inside NYC, see inNyc()). */
+function nyDistrictLines(dist, schoolsIdx) {
+  if (!dist) return { dist: "", hs: "" };
+  const line = "school district: " + dist.name;
+  if (!schoolsIdx) return { dist: line, hs: "" };
+  const list = schoolsIdx.get(normDistrictKey(dist.name)) || [];
+  if (!list.length) return { dist: line, hs: "" };
+  if (list.length === 1) return { dist: line, hs: "high school: " + list[0] };
+  const shown = list.slice(0, 3).join(" · ");
+  return { dist: line, hs: "high schools: " + shown + (list.length > 3 ? " (+" + (list.length - 3) + ")" : "") };
+}
+
+/* NYC's ~32 geographic school districts govern K-8; high school admission is
+   citywide choice, not zoned — so a district-to-high-school join would be
+   meaningless there. Reuses the same NYC bbox as the neighborhood overlay. */
+function inNyc(lon, lat) {
+  const ov = HOOD_OVERLAYS.find(o => o.id === "nyc");
+  return !!ov && inBbox(ov.bbox, lon, lat);
+}
+
 function formatBytes(n) {
   if (n == null || isNaN(n)) return "?";
   if (n < 1024) return n + " B";
@@ -1389,6 +1484,40 @@ async function loadPackPop(pack) {
   }
 }
 
+async function loadPackSchoolDist(pack) {
+  const def = pack.schoolDist;
+  if (!def) return;
+  try {
+    let cached = await kvGet(def.distKey);
+    let distFc;
+    if (cached) { distFc = JSON.parse(cached); pack.bytes += cached.length; }
+    else {
+      distFc = await fetchAllPages(def.distUrl, def.distParams, {}, "pack");
+      const s = JSON.stringify(distFc);
+      await kvSet(def.distKey, s).catch(() => {});
+      pack.bytes += s.length;
+    }
+    pack.schoolDistStore = makeStore();
+    pack.schoolDistStore.features = buildNySchoolDistricts(distFc);
+    pack.schoolDistStore.overall = pack.schoolDistStore.features.length
+      ? overallBbox(pack.schoolDistStore.features) : null;
+
+    cached = await kvGet(def.schoolsKey);
+    let schoolsFc;
+    if (cached) { schoolsFc = JSON.parse(cached); pack.bytes += cached.length; }
+    else {
+      schoolsFc = await fetchAllPages(def.schoolsUrl, def.schoolsParams, {}, "pack");
+      const s = JSON.stringify(schoolsFc);
+      await kvSet(def.schoolsKey, s).catch(() => {});
+      pack.bytes += s.length;
+    }
+    pack.schoolsIndex = buildNySchoolsIndex(schoolsFc);
+    if (lastFix) onFix(lastFix, true);
+  } catch (e) {
+    // school data is an enhancement — the pack still works without it
+  }
+}
+
 async function ensurePackLoaded(pack) {
   if (pack.loaded || pack.loading) return;
   pack.loading = true;
@@ -1400,7 +1529,8 @@ async function ensurePackLoaded(pack) {
     await Promise.all([
       ...Object.entries(pack.layers).map(([kind, def]) => loadPackLayer(pack, kind, def)),
       loadZctaEnvelope(pack),
-      loadPackPop(pack)
+      loadPackPop(pack),
+      loadPackSchoolDist(pack)
     ]);
     pack.loaded = true;
     setStatesStatus(pack.code + ": ready (" + formatBytes(pack.bytes) + ")");
@@ -1681,9 +1811,17 @@ function onFix(fix, silent) {
   current = f;
   if (f) {
     townName.textContent = f.name;
-    const dl = districtLines(storeLookup(SD.u, lon, lat),
-                             storeLookup(SD.e, lon, lat),
-                             storeLookup(SD.s, lon, lat), SCHOOLS);
+    let dl = { dist: "", hs: "" };
+    if (f.state === "NJ") {
+      dl = districtLines(storeLookup(SD.u, lon, lat), storeLookup(SD.e, lon, lat),
+                          storeLookup(SD.s, lon, lat), SCHOOLS);
+    } else if (f.state === "NY") {
+      const nyPack = STATE_PACKS.find(p => p.code === "NY");
+      if (nyPack && nyPack.schoolDistStore) {
+        const d = storeLookup(nyPack.schoolDistStore, lon, lat);
+        dl = nyDistrictLines(d, inNyc(lon, lat) ? null : nyPack.schoolsIndex);
+      }
+    }
     const leg = storeLookup(CIVIC.leg, lon, lat);
     const cong = storeLookup(CIVIC.cong, lon, lat);
     renderLines(composeLinesFound(
@@ -1769,6 +1907,10 @@ let CACHE_LAYERS = [
       if (!seen.has(def.key)) { CACHE_LAYERS.push([p.code + " " + kind, def.key]); seen.add(def.key); }
     }
     if (p.pop && !seen.has(p.pop.key)) { CACHE_LAYERS.push([p.code + " population", p.pop.key]); seen.add(p.pop.key); }
+    if (p.schoolDist) {
+      if (!seen.has(p.schoolDist.distKey)) { CACHE_LAYERS.push([p.code + " school districts", p.schoolDist.distKey]); seen.add(p.schoolDist.distKey); }
+      if (!seen.has(p.schoolDist.schoolsKey)) { CACHE_LAYERS.push([p.code + " schools", p.schoolDist.schoolsKey]); seen.add(p.schoolDist.schoolsKey); }
+    }
     if (!seen.has(p.zctaKey)) {
       CACHE_LAYERS.push([p.zctaKey.startsWith("ne_") ? "New England zips" : p.code + " zips", p.zctaKey]);
       seen.add(p.zctaKey);
