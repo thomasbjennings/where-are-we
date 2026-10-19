@@ -6,7 +6,7 @@ Open it, allow location, and it shows the municipality you're in right now, alon
 
 It's a web page, not an App Store app. Nothing to download from a store, no account, no sign-up.
 
-**Open it here:** [ADD LINK]
+**Open it here:** [thomasbjennings.github.io/where-are-we](https://thomasbjennings.github.io/where-are-we/)
 
 ## Where it works
 
