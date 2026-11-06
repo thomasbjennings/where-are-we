@@ -38,12 +38,14 @@ Adding it to your home screen makes it open full screen, like a regular app.
 
 ### iPhone or iPad
 
-1. Open the link in **Safari**. (Other browsers on iPhone may not offer this option.)
-2. Tap the **Share** button, the square with an arrow pointing up.
-3. Scroll down and tap **Add to Home Screen**, then **Add**.
+Works in both **Safari** and **Chrome**.
+
+1. Open the link.
+2. **Safari:** tap the **Share** button, the square with an arrow pointing up. **Chrome:** tap the **⋮** menu in the top-right corner.
+3. Tap **Add to Home Screen** (Chrome may say **Add to Home screen** too), then **Add**.
 4. Open it from the new icon and tap **Allow** when it asks for your location.
 
-If it never asks, or you tapped "Don't Allow," go to **Settings → Privacy & Security → Location Services → Safari Websites** and choose **While Using the App**.
+If it never asks, or you tapped "Don't Allow," go to **Settings → Privacy & Security → Location Services**, find **Safari Websites** or **Chrome**, and choose **While Using the App**.
 
 ### Android
 
