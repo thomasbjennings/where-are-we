@@ -53,6 +53,10 @@
   }
   #map.hidden { display: none; }
   .leaflet-container { font: 10px/1.3 Arial, sans-serif; }
+  .nbr-label { background: none; border: 0; }
+  .nbr-label span { display: inline-block; transform: translate(-50%, -50%);
+    white-space: nowrap; font: 11px Arial, sans-serif; color: #0000EE;
+    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; pointer-events: none; }
 
   .now { padding: 10px 12px 11px; border-bottom: 1px solid var(--rule); flex-shrink: 0; }
   .now .label { font-size: 11px; color: var(--meta); margin-bottom: 3px; }
@@ -1032,7 +1036,8 @@ function resolvePack(pack, lon, lat) {
       sqmiRank: village.sqmiRank, sqmiOf: village.sqmiOf,
       src: "census boundary",
       extraLines,
-      geo: village.geo
+      geo: village.geo,
+      selfRef: village, nbrSource: S.village.features
     };
   }
   if (muni) {
@@ -1046,7 +1051,8 @@ function resolvePack(pack, lon, lat) {
       sqmiRank: muni.sqmiRank, sqmiOf: muni.sqmiOf,
       src: "census boundary",
       extraLines: [],
-      geo: muni.geo
+      geo: muni.geo,
+      selfRef: muni, nbrSource: S.muni.features
     };
   }
   // No municipality here at all (NC-style territory): legally unincorporated.
@@ -1059,7 +1065,8 @@ function resolvePack(pack, lon, lat) {
       sqmi: null,
       src: "census boundary",
       extraLines: [],
-      geo: county.geo
+      geo: county.geo,
+      selfRef: county, nbrSource: S.county.features
     };
   }
   return null;
@@ -1635,12 +1642,88 @@ function drawBoundaries() {
   ).addTo(map);
 }
 
+/* Adjoining places: same-layer features whose boundary comes within ~50 m of
+   the current one's (bbox overlap alone would also catch diagonal neighbors). */
+let nbrLayer = null, nbrKey = "";
+
+function adjoining(self, source) {
+  if (!self || !self.bbox || !source) return [];
+  const PAD = 0.002, CELL = 0.0005;
+  const b = self.bbox;
+  const cands = source.filter(o => o !== self && o.bbox &&
+    o.bbox[0] <= b[2] + PAD && o.bbox[2] >= b[0] - PAD &&
+    o.bbox[1] <= b[3] + PAD && o.bbox[3] >= b[1] - PAD);
+  if (!cands.length) return [];
+  const key = (x, y) => Math.round(x / CELL) + "," + Math.round(y / CELL);
+  const mine = new Set();
+  for (const p of self.polys) for (const ring of p.rings)
+    for (const pt of ring) mine.add(key(pt[0], pt[1]));
+  const out = [];
+  for (const o of cands) {
+    let hit = false;
+    outer: for (const p of o.polys) for (const ring of p.rings) for (const pt of ring) {
+      const cx = Math.round(pt[0] / CELL), cy = Math.round(pt[1] / CELL);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        if (mine.has((cx + dx) + "," + (cy + dy))) { hit = true; break outer; }
+      }
+    }
+    if (hit) out.push(o);
+  }
+  return out;
+}
+
+function labelPoint(item) {
+  // area-weighted centroid of the largest outer ring; falls back to bbox center
+  let best = null, bestA = 0;
+  for (const p of item.polys) {
+    const r = p.rings[0];
+    let a = 0, cx = 0, cy = 0;
+    for (let i = 0; i < r.length - 1; i++) {
+      const c = r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1];
+      a += c; cx += (r[i][0] + r[i + 1][0]) * c; cy += (r[i][1] + r[i + 1][1]) * c;
+    }
+    if (Math.abs(a) > bestA) { bestA = Math.abs(a); best = { a, cx, cy, p }; }
+  }
+  if (best && best.a) {
+    const lon = best.cx / (3 * best.a), lat = best.cy / (3 * best.a);
+    if (ringsContain(best.p.rings, lon, lat)) return [lat, lon];
+  }
+  const bb = item.bbox;
+  return [(bb[1] + bb[3]) / 2, (bb[0] + bb[2]) / 2];
+}
+
+function drawNeighbors(feature) {
+  const sig = feature && feature.selfRef
+    ? (feature.state || "") + "|" + feature.name : "";
+  if (sig === nbrKey) return;
+  nbrKey = sig;
+  if (nbrLayer) { map.removeLayer(nbrLayer); nbrLayer = null; }
+  if (!sig) return;
+  const group = L.layerGroup();
+  for (const o of adjoining(feature.selfRef, feature.nbrSource)) {
+    if (o.geo) L.geoJSON(o.geo, {
+      style: { color: "#0000EE", weight: 1.5, fill: false, opacity: 0.9 },
+      interactive: false
+    }).addTo(group);
+    L.marker(labelPoint(o), {
+      interactive: false, keyboard: false,
+      icon: L.divIcon({
+        className: "nbr-label",
+        html: '<span>' + String(o.name).replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</span>',
+        iconSize: [0, 0]
+      })
+    }).addTo(group);
+  }
+  nbrLayer = group.addTo(map);
+}
+
 function highlight(feature) {
   if (currentLayer) { map.removeLayer(currentLayer); currentLayer = null; }
-  if (!feature) return;
+  if (!feature) { drawNeighbors(null); return; }
   currentLayer = L.geoJSON(feature.geo, {
-    style: { color: "#0000EE", weight: 1.5, fillColor: "#0000EE", fillOpacity: 0.06 }
+    style: { color: "#CC0000", weight: 2.5, fillColor: "#CC0000", fillOpacity: 0.06 }
   }).addTo(map);
+  drawNeighbors(feature);
 }
 
 let follow = true;
@@ -1787,7 +1870,7 @@ function onFix(fix, silent) {
   const nj = lookup(lon, lat);
   let f = null;
   if (nj) {
-    f = Object.assign({}, nj, { state: "NJ" });
+    f = Object.assign({}, nj, { state: "NJ", selfRef: nj, nbrSource: FEATURES });
   } else if (FEATURES.length) {
     // Only consult other states once NJ data is loaded and says "not here".
     for (const pack of STATE_PACKS) {
