@@ -1705,9 +1705,12 @@ function drawNeighbors(feature) {
   // bigger towns get label priority when names collide
   const areaOf = o => (o.bbox[2] - o.bbox[0]) * (o.bbox[3] - o.bbox[1]);
   nbrs.sort((a, b) => areaOf(b) - areaOf(a));
+  const TINTS = ["#1f77b4", "#2ca02c", "#ff7f0e", "#9467bd", "#17becf", "#bcbd22", "#e377c2", "#8c564b"];
+  let ti = 0;
   for (const o of nbrs) {
+    const tint = TINTS[ti++ % TINTS.length];
     if (o.geo) L.geoJSON(o.geo, {
-      style: { color: "#0000EE", weight: 1.5, fillColor: "#0000EE", fillOpacity: 0.12, opacity: 0.9 },
+      style: { color: "#0000EE", weight: 1.5, fillColor: tint, fillOpacity: 0.28, opacity: 0.9 },
       interactive: false
     }).addTo(group);
     const mk = L.marker(labelPoint(o), {
