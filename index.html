@@ -1700,12 +1700,17 @@ function drawNeighbors(feature) {
   if (nbrLayer) { map.removeLayer(nbrLayer); nbrLayer = null; }
   if (!sig) return;
   const group = L.layerGroup();
-  for (const o of adjoining(feature.selfRef, feature.nbrSource)) {
+  nbrLabels = [];
+  const nbrs = adjoining(feature.selfRef, feature.nbrSource);
+  // bigger towns get label priority when names collide
+  const areaOf = o => (o.bbox[2] - o.bbox[0]) * (o.bbox[3] - o.bbox[1]);
+  nbrs.sort((a, b) => areaOf(b) - areaOf(a));
+  for (const o of nbrs) {
     if (o.geo) L.geoJSON(o.geo, {
-      style: { color: "#0000EE", weight: 1.5, fill: false, opacity: 0.9 },
+      style: { color: "#0000EE", weight: 1.5, fillColor: "#0000EE", fillOpacity: 0.12, opacity: 0.9 },
       interactive: false
     }).addTo(group);
-    L.marker(labelPoint(o), {
+    const mk = L.marker(labelPoint(o), {
       interactive: false, keyboard: false,
       icon: L.divIcon({
         className: "nbr-label",
@@ -1713,9 +1718,29 @@ function drawNeighbors(feature) {
         iconSize: [0, 0]
       })
     }).addTo(group);
+    nbrLabels.push(mk);
   }
   nbrLayer = group.addTo(map);
+  layoutLabels();
 }
+
+/* Hide a neighbor's name when it would sit on top of an already-shown one
+   (largest towns first). Re-run on zoom/pan so more names appear as you zoom in. */
+let nbrLabels = [];
+function layoutLabels() {
+  const shown = [];
+  for (const mk of nbrLabels) {
+    const el = mk.getElement();
+    if (!el) continue;
+    const span = el.firstChild;
+    span.style.visibility = "visible";
+    const r = span.getBoundingClientRect();
+    const hit = shown.some(q => r.left < q.right + 2 && r.right > q.left - 2 &&
+      r.top < q.bottom && r.bottom > q.top);
+    if (hit) span.style.visibility = "hidden"; else shown.push(r);
+  }
+}
+map.on("zoomend moveend", layoutLabels);
 
 function highlight(feature) {
   if (currentLayer) { map.removeLayer(currentLayer); currentLayer = null; }
