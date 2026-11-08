@@ -40,6 +40,8 @@
     border-bottom: 1px solid var(--rule);
     flex-shrink: 0;
   }
+  /* home-screen app only: iOS fades the strip under the status bar, so give the header room */
+  @media (display-mode: standalone) { .hdr { padding-top: 14px; } }
   .hdr .brand { font-size: 15px; font-weight: bold; color: var(--visited); }
   .hdr .links { font-size: 12px; }
   .hdr .links a { margin-left: 12px; }
