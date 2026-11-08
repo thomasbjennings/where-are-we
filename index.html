@@ -53,7 +53,7 @@
   }
   #map.hidden { display: none; }
   .leaflet-container { font: 10px/1.3 Arial, sans-serif; }
-  .leaflet-tile-pane { filter: grayscale(1) contrast(0.9) brightness(1.05); }
+  .gray-map .leaflet-tile-pane { filter: grayscale(1) contrast(0.9) brightness(1.05); }
   .nbr-label { background: none; border: 0; }
   .nbr-label span { display: inline-block; transform: translate(-50%, -50%);
     white-space: nowrap; font: 11px Arial, sans-serif; color: #0000EE;
@@ -1782,6 +1782,31 @@ followCtl.onAdd = function () {
   return div;
 };
 followCtl.addTo(map);
+
+/* base map: gray (default) or regular color; choice is remembered */
+const MAPSTYLE_KEY = "waw.mapstyle";
+let grayMap = true;
+try { grayMap = localStorage.getItem(MAPSTYLE_KEY) !== "color"; } catch (e) {}
+let styleLink = null;
+function applyMapStyle() {
+  map.getContainer().classList.toggle("gray-map", grayMap);
+  if (styleLink) styleLink.textContent = grayMap ? "gray map" : "color map";
+  try { localStorage.setItem(MAPSTYLE_KEY, grayMap ? "gray" : "color"); } catch (e) {}
+}
+const styleCtl = L.control({ position: "topright" });
+styleCtl.onAdd = function () {
+  const div = L.DomUtil.create("div");
+  div.style.cssText =
+    "background:#fff;border:1px solid #dcdcdc;padding:2px 7px;font:11px Arial,sans-serif;";
+  styleLink = document.createElement("a");
+  styleLink.style.cssText = "color:#0000EE;cursor:pointer;text-decoration:underline;";
+  styleLink.onclick = () => { grayMap = !grayMap; applyMapStyle(); };
+  div.appendChild(styleLink);
+  L.DomEvent.disableClickPropagation(div);
+  return div;
+};
+styleCtl.addTo(map);
+applyMapStyle();
 
 // A manual drag means the person wants to browse — stop following.
 map.on("dragstart", () => setFollow(false));
